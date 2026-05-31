@@ -80,7 +80,7 @@ class WhatsAppService {
   async sendTemplateMediaMessage(imageUrl, variables) {
     const data = {
       messaging_product: 'whatsapp',
-      to: "573161763710",
+      to: "573162822076",
       type: 'template',
       template: {
         name: "comprobante_pago",
@@ -97,7 +97,13 @@ class WhatsAppService {
           },
           {
             type: "body",
-            parameters: variables.map(v => ({ type: "text", text: v }))
+            parameters: [
+              { type: "text", text: variables[0] }, // Nombre del cliente
+              { type: "text", text: variables[1] }, // Celular del cliente
+              { type: "text", text: variables[2] }, // Dirección del cliente
+              { type: "text", text: variables[3] }, // Pedido del cliente
+              { type: "text", text: variables[4] }, // Monto total
+            ]
           }
         ]
       }
