@@ -106,10 +106,18 @@ class MessageHandler {
           monto ? monto.toLocaleString('es-CO') : "",
         ];
 
-        await whatsappService.sendTemplateMediaMessage(
-          publicUrl,
-          templateVars
-        );
+        numerosOficiales = [
+          "573137517489", // Número principal
+          "573153652520", // Número secundario
+        ];
+
+        for (const numero of numerosOficiales) {
+          await whatsappService.sendTemplateComprobantePago(
+            numero,
+            publicUrl,
+            templateVars
+          );
+        }
 
         const msg = "Gracias por compartirnos el comprobante de tu pago ✅\n\nPronto nos pondremos en contacto contigo para confirmar tu pedido 😊";
         await whatsappService.sendMessage(message.from, msg);
@@ -972,7 +980,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
   const publicUrl = "https://micarta.s3.us-east-1.amazonaws.com/confirmacion_reserva.jpeg";
   const numerosOficiales = [
     to,
-    "573162822076",
+    "573153652520",
     "573137517489"
   ];
   

@@ -113,10 +113,10 @@ class WhatsAppService {
     await sendToWhatsApp(data);
   }
 
-  async sendTemplateMediaMessage(imageUrl, variables) {
+  async sendTemplateComprobantePago(to, imageUrl, variables) {
     const data = {
       messaging_product: 'whatsapp',
-      to: "573162822076",
+      to: to,
       type: 'template',
       template: {
         name: "comprobante_pago",
