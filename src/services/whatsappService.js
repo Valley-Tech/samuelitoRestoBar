@@ -77,6 +77,42 @@ class WhatsAppService {
     }
   }
 
+  async sendTemplateReserva(to, imageUrl, variables) {
+    const data = {
+      messaging_product: 'whatsapp',
+      to: to,
+      type: 'template',
+      template: {
+        name: "confirmacion_reserva",
+        language: { code: "es_CO" },
+        components: [
+          {
+            type: "header",
+            parameters: [
+              {
+                type: "image",
+                image: { link: imageUrl }
+              }
+            ]
+          },
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: variables[0] },
+              { type: "text", text: variables[1] },
+              { type: "text", text: variables[2] },
+              { type: "text", text: variables[3] },
+              { type: "text", text: variables[4] }, 
+              { type: "text", text: variables[5] },
+              { type: "text", text: variables[6] },
+            ]
+          }
+        ]
+      }
+    };
+    await sendToWhatsApp(data);
+  }
+
   async sendTemplateMediaMessage(imageUrl, variables) {
     const data = {
       messaging_product: 'whatsapp',

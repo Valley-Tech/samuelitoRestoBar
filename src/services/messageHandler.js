@@ -977,7 +977,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
   ];
   
   for (const numero of numerosOficiales) {
-    await whatsappService.sendTemplateMediaMessage(numero, "confirmacion_reserva", publicUrl, templateVars);
+    await whatsappService.sendTemplateReserva(numero, publicUrl, templateVars);
   }
   this.sendLocation(to);
 
