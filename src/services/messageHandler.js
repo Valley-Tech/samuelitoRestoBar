@@ -972,7 +972,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
   const publicUrl = "https://micarta.s3.us-east-1.amazonaws.com/confirmacion_reserva.jpeg";
   const numerosOficiales = [
     to,
-    "573153652520",
+    "573162822076",
     "573137517489"
   ];
   
