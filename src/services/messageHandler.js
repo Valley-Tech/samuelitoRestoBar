@@ -17,7 +17,7 @@ function isWithinBusinessHours() {
   const minute = colombiaTime.getMinutes();
 
   // Horario: 12:00 (12 p.m.) a 22:00 (10 p.m.)
-  const opening = 12 * 60; // 12:00 p.m. en minutos
+  const opening = 11 * 60; // 12:00 p.m. en minutos // Cambie Hora de apertura a 11:00 para incluir mensajes recibidos a las 11:00
   const closing = 22 * 60; // 10:00 p.m. en minutos
   const current = hour * 60 + minute;
 
@@ -106,19 +106,11 @@ class MessageHandler {
           monto ? monto.toLocaleString('es-CO') : "",
         ];
 
-        const numerosOficiales = [
-          "573153652520",
-          "573137517489"
-        ];
+        await whatsappService.sendTemplateMediaMessage(
+          publicUrl,
+          templateVars
+        );
 
-        for (const numero of numerosOficiales) {
-          await whatsappService.sendTemplateMediaMessage(
-            numero, // Número oficial
-            "comprobante_pago", // Nombre de tu plantilla
-            publicUrl,         // URL pública de la imagen en S3
-            templateVars
-          );
-        }
         const msg = "Gracias por compartirnos el comprobante de tu pago ✅\n\nPronto nos pondremos en contacto contigo para confirmar tu pedido 😊";
         await whatsappService.sendMessage(message.from, msg);
         await this.menuOpcionalHiring(message.from);

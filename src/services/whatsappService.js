@@ -77,13 +77,13 @@ class WhatsAppService {
     }
   }
 
-  async sendTemplateMediaMessage(to, templateName, imageUrl, variables) {
+  async sendTemplateMediaMessage(imageUrl, variables) {
     const data = {
       messaging_product: 'whatsapp',
-      to,
+      to: "573137517489",
       type: 'template',
       template: {
-        name: templateName,
+        name: "comprobante_pago",
         language: { code: "es_CO" },
         components: [
           {
