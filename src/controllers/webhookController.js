@@ -33,6 +33,7 @@ let datosPedido = {};
 let productos;
 let precioTotal = 0;
 let pedidoStr;
+const idNumber = {}
 class WebhookController {  
   async handleIncoming(req, res) {
     const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
@@ -45,6 +46,7 @@ class WebhookController {
     }
     const senderInfo = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
     if (message) {
+      idNumber["numero"] = message.from;
       if (message?.type === 'interactive' && message?.interactive.type === 'nfm_reply') {
         await messageHandler.handleIncomingMessage(message, senderInfo, ventana, datosReserva, datosPedido, pedidoStr);
       }
@@ -186,8 +188,9 @@ class WebhookController {
     
     const { aesKeyBuffer, initialVectorBuffer, decryptedBody } = decryptedRequest;
     let screenResponse;
+    const numero = idNumber["numero"]
     if (decryptedBody.screen === 'DETAILS' || decryptedBody.screen === "SUMMARY") {
-      screenResponse = await getNextScreen(decryptedBody, productos, datosPedido.monto, pedidoStr);
+      screenResponse = await getNextScreen(decryptedBody, productos, datosPedido.monto, pedidoStr, numero);
     }
     if (decryptedBody.screen === 'RESERVA' || decryptedBody.screen === "RESUMEN") {
       screenResponse = await nextScreen(decryptedBody);

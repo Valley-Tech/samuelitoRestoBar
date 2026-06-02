@@ -1073,11 +1073,10 @@ async handleWompiEvent(transaction) {
     await whatsappService.sendMediaMessage(to, type, mediaUrl);
   }
 
-  completeHiring(productos, data) {
+  completeHiring(productos, data, numero) {
     let fechayhora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     let userData;
     const spreadsheetId = process.env.SPREADSHEETID_PEDIDO;
-    const numero = idNumber["numero"] || "No disponible";
       userData = [
         numero,
         data.name,

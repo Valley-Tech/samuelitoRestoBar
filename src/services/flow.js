@@ -11,7 +11,7 @@ const SCREEN_RESPONSES = {
   },
 };
 
-export const getNextScreen = async (decryptedBody, productos, total, pedidoStr) => {
+export const getNextScreen = async (decryptedBody, productos, total, pedidoStr, numero) => {
   const { screen, data, version, action, flow_token } = decryptedBody;
   // handle health check request
   if (action === "ping") {
@@ -85,7 +85,7 @@ Medio de pago:    ${data.pago}`;
         };
         break;
       case "SUMMARY":
-        messageHandler.completeHiring(pedidoStr, data);
+        messageHandler.completeHiring(pedidoStr, data, numero);
         messageHandler.completeOrder(productos, data);
         result = {
           ...SCREEN_RESPONSES.SUCCESS,
