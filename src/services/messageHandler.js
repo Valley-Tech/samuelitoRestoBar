@@ -17,7 +17,7 @@ function isWithinBusinessHours() {
   const minute = colombiaTime.getMinutes();
 
   // Horario: 12:00 (12 p.m.) a 22:00 (10 p.m.)
-  const opening = 11 * 60; // 12:00 p.m. en minutos // Cambie Hora de apertura a 11:00 para incluir mensajes recibidos a las 11:00
+  const opening = 12 * 60; // 12:00 p.m. en minutos 
   const closing = 22 * 60; // 10:00 p.m. en minutos
   const current = hour * 60 + minute;
 
@@ -107,8 +107,8 @@ class MessageHandler {
         ];
 
         numerosOficiales = [
-          "573137517489", // Número principal
           "573153652520", // Número secundario
+          "573137517489", // Número principal
         ];
 
         for (const numero of numerosOficiales) {
