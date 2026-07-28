@@ -926,7 +926,6 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
       if (datosPedido.datos.address) {
         (datosPedido.monto += 3000).toLocaleString('es-CO');
       }
-      const pedidoStrTemplate = pedidoStr.replace(/\n/g, '  |  ');
       if (datosPedido.datos.pago === "Efectivo") {
         response = "✅¡Pedido recibido!\nPronto nos pondremos en contacto contigo! 🤗";
         await this.menuOpcionalHiring(to);
@@ -948,7 +947,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
       userOrderDataMap[to] = {
         ...datosPedido.datos,
         monto: datosPedido.monto,
-        pedidoStrTemplate
+        pedidoStr
       };
         response = `*Resumen de tu pedido*🛒:\n\n${pedidoStr}\n*Total:* $${datosPedido.monto.toLocaleString('es-CO')} COP\n\n🏦Cuentas bancarias:\n\n*Nequi:* 3117445749\n*Mar** Ari***\n\n*Bancolombia Ahorros:* 70423175395\nMar** Pat** Ari**\n\n*Banco BBVA:* 0614001209\n\nLuego, envíanos el comprobante de la transferencia (captura) para confirmar tu pedido 😊`;
       }
