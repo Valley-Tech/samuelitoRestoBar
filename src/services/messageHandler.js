@@ -109,7 +109,7 @@ class MessageHandler {
         const numerosOficiales = [
           "573153652520", // Número secundario
           "573137517489", // Número principal
-          "573161763710"
+          "573162822076"
         ];
 
         for (const numero of numerosOficiales) {
@@ -928,7 +928,29 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
       } else {
         datosPedido.datos.address = "Recogida en restaurante";
       }
+      const pedidoStrTemplate = pedidoStr.replace(/\n/g, '  |  ');
       if (datosPedido.datos.pago === "Efectivo") {
+        const templateVars = [
+          datosPedido.datos.name,
+          datosPedido.datos.phone,
+          datosPedido.datos.address,
+          pedidoStrTemplate,
+          datosPedido.monto ? datosPedido.monto.toLocaleString('es-CO') : ""
+        ];
+
+        const numerosOficiales = [
+          "573153652520", // Número secundario
+          "573137517489", // Número principal
+          "573162822076"
+        ];
+
+        for (const numero of numerosOficiales) {
+          await whatsappService.sendTemplateComprobantePago(
+            numero,
+            "https://sorteo-chatbot.s3.us-east-1.amazonaws.com/descarga.jfif",
+            templateVars
+          )
+        };
         response = "✅¡Pedido recibido!\nPronto nos pondremos en contacto contigo! 🤗";
         await this.menuOpcionalHiring(to);
       } else if (datosPedido.datos.pago === "PSE") {
@@ -949,10 +971,10 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
       userOrderDataMap[to] = {
         ...datosPedido.datos,
         monto: datosPedido.monto,
-        pedidoStr
+        pedidoStrTemplate
       };
         response = `*Resumen de tu pedido*🛒:\n\n${pedidoStr}\n*Total:* $${datosPedido.monto.toLocaleString('es-CO')} COP\n\n🏦Cuentas bancarias:\n\n*Nequi:* 3117445749\n*Mar** Ari***\n\n*Bancolombia Ahorros:* 70423175395\nMar** Pat** Ari**\n\n*Banco BBVA:* 0614001209\n\nLuego, envíanos el comprobante de la transferencia (captura) para confirmar tu pedido 😊`;
-      }
+    }
    } else if (screen === "RESUMEN") {
     const horario = datosReserva.evento === "Festival Gastronomico" 
       ? 'hora' 
