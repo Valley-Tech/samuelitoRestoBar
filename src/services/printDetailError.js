@@ -1,4 +1,4 @@
-function logAxiosError(context, error) {
+export function logAxiosError(context, error) {
   if (error.response) {
     // El servidor (Meta) respondió con un error
     console.error(`[${context}] Error ${error.response.status}:`,
@@ -12,5 +12,3 @@ function logAxiosError(context, error) {
     console.error(`[${context}] Error de configuración:`, error.message);
   }
 }
-
-export default logAxiosError
