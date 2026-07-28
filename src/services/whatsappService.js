@@ -114,6 +114,7 @@ class WhatsAppService {
   }
 
   async sendTemplateComprobantePago(to, imageUrl, variables) {
+    try {
     const data = {
       messaging_product: 'whatsapp',
       to: to,
@@ -145,6 +146,9 @@ class WhatsAppService {
       }
     };
     await sendToWhatsApp(data);
+    } catch (error) {
+      console.log("Error: ", error);
+    }
   }
   
   async sendFlowReserva(to, action) {
