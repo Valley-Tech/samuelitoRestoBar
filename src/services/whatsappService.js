@@ -115,6 +115,12 @@ class WhatsAppService {
 
   async sendTemplateComprobantePago(to, imageUrl, variables) {
     try {
+      const safeVariables = variables.map(v =>
+      String(v ?? '')
+        .replace(/[\n\t]/g, ' ')      // saltos de línea y tabs -> espacio
+        .replace(/ {2,}/g, ' ')       // colapsa espacios múltiples
+        .trim()
+      );
     const data = {
       messaging_product: 'whatsapp',
       to: to,
@@ -134,13 +140,7 @@ class WhatsAppService {
           },
           {
             type: "body",
-            parameters: [
-              { type: "text", text: variables[0] }, // Nombre del cliente
-              { type: "text", text: variables[1] }, // Celular del cliente
-              { type: "text", text: variables[2] }, // Dirección del cliente
-              { type: "text", text: variables[3] }, // Pedido del cliente
-              { type: "text", text: variables[4] }, // Monto total
-            ]
+            parameters: safeVariables.map(text => ({ type: "text", text }))
           }
         ]
       }

@@ -106,7 +106,7 @@ class MessageHandler {
           monto ? monto.toLocaleString('es-CO') : "",
         ];
 
-        numerosOficiales = [
+        const numerosOficiales = [
           "573153652520", // Número secundario
           "573137517489", // Número principal
           "573161763710"
