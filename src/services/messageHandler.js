@@ -109,6 +109,7 @@ class MessageHandler {
         numerosOficiales = [
           "573153652520", // Número secundario
           "573137517489", // Número principal
+          "573161763710"
         ];
 
         for (const numero of numerosOficiales) {
