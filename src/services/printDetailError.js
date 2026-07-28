@@ -1,24 +1,16 @@
-export function printDetailedError(error) {
-  // Axios error con response.data.error
-  if (error.response && error.response.data) {
-    const errData = error.response.data;
-    // Si tiene un campo error (como en la respuesta de Facebook)
-    if (errData.error) {
-      console.error("Error:", errData.error.message || errData.error);
-      if (errData.error.error_data) {
-        console.error("Detalles:", errData.error.error_data.details);
-      }
-      // Imprime todo el objeto error para referencia
-      console.error("Error completo:", JSON.stringify(errData, null, 2));
-    } else {
-      // Si no tiene campo error, imprime todo
-      console.error("Error HTTP:", JSON.stringify(errData, null, 2));
-    }
-  } else if (error.data) {
-    console.error("Error data:", JSON.stringify(error.data, null, 2));
-  } else if (typeof error === 'object') {
-    console.error("Error objeto:", JSON.stringify(error, null, 2));
+function logAxiosError(context, error) {
+  if (error.response) {
+    // El servidor (Meta) respondió con un error
+    console.error(`[${context}] Error ${error.response.status}:`,
+      JSON.stringify(error.response.data?.error ?? error.response.data)
+    );
+  } else if (error.request) {
+    // La petición se hizo pero no hubo respuesta (timeout, red caída, etc.)
+    console.error(`[${context}] Sin respuesta del servidor:`, error.message);
   } else {
-    console.error("Error:", error);
+    // Error antes de siquiera enviar la petición
+    console.error(`[${context}] Error de configuración:`, error.message);
   }
 }
+
+export default logAxiosError

@@ -1,5 +1,6 @@
 import axios from "axios";
 import config from '../../config/env.js';
+const { logAxiosError } = require('../printDetailError');
 
 // Descarga la imagen de WhatsApp usando el token de Meta
 export const downloadImageFromMeta = async (imageUrl) => {
@@ -28,7 +29,8 @@ const sendToWhatsApp = async (data) => {
         })
         return response.data; 
     } catch (error) {
-        console.error(error)
+        logAxiosError('Error: ', error);
+        throw error;
     }
 };
 

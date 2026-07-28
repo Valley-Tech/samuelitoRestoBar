@@ -4,9 +4,9 @@ import geminiService from './geminiService.js';
 import { createWompiPaymentLink, getWompiTransactionStatus } from './wompiService.js';
 import { enviarPedidoALoggro } from './loggroService.js';
 import { saveUserDataByNumber } from './googleSheetsService.js';
-import { printDetailedError } from './printDetailError.js';
 import { downloadImageFromMeta } from './httpRequest/sendToWhatsApp.js';
 import { uploadToPublicStorage } from './awsS3Service.js';
+const { logAxiosError } = require('../printDetailError');
 
 function isWithinBusinessHours() {
   // Hora actual en Colombia (GMT-5)
@@ -150,7 +150,8 @@ class MessageHandler {
         return;
       }
   } catch (error) {
-    console.error("Error:", error);
+    logAxiosError('sendToWhatsApp', error);
+    throw error;
   }
 }
 
@@ -925,6 +926,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
       if (datosPedido.datos.address) {
         (datosPedido.monto += 3000).toLocaleString('es-CO');
       }
+      const pedidoStrTemplate = pedidoStr.replace(/\n/g, '  |  ');
       if (datosPedido.datos.pago === "Efectivo") {
         response = "✅¡Pedido recibido!\nPronto nos pondremos en contacto contigo! 🤗";
         await this.menuOpcionalHiring(to);
@@ -946,7 +948,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
       userOrderDataMap[to] = {
         ...datosPedido.datos,
         monto: datosPedido.monto,
-        pedidoStr
+        pedidoStrTemplate
       };
         response = `*Resumen de tu pedido*🛒:\n\n${pedidoStr}\n*Total:* $${datosPedido.monto.toLocaleString('es-CO')} COP\n\n🏦Cuentas bancarias:\n\n*Nequi:* 3117445749\n*Mar** Ari***\n\n*Bancolombia Ahorros:* 70423175395\nMar** Pat** Ari**\n\n*Banco BBVA:* 0614001209\n\nLuego, envíanos el comprobante de la transferencia (captura) para confirmar tu pedido 😊`;
       }

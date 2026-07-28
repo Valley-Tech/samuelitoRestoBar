@@ -47,7 +47,7 @@ class WhatsAppService {
 
       await sendToWhatsApp(data);
     } catch (error) {
-      console.log("Error: ", error);
+      console.error("Error: ", error);
     }
   }
 
@@ -73,7 +73,7 @@ class WhatsAppService {
       
     await sendToWhatsApp(data);
     } catch (error) {
-      console.log("Error: ", error);
+      console.error("Error: ", error);
     }
   }
 
@@ -147,7 +147,7 @@ class WhatsAppService {
     };
     await sendToWhatsApp(data);
     } catch (error) {
-      console.log("Error: ", error);
+      console.error("Error: ", error);
     }
   }
   
@@ -173,7 +173,7 @@ class WhatsAppService {
   
     await sendToWhatsApp(data);
     } catch (error) {
-      console.log("Error: ", error);
+      console.error("Error: ", error);
     }
   }
   
@@ -215,7 +215,7 @@ class WhatsAppService {
   
     await sendToWhatsApp(data);
     } catch (error) {
-      console.log("Error: ", error);
+      console.error("Error: ", error);
     }
   }
 
@@ -251,7 +251,7 @@ class WhatsAppService {
   
       await sendToWhatsApp(data);
     } catch (error) {
-      console.log("Error: ", error);
+      console.error("Error: ", error);
     }
   }
 
@@ -267,7 +267,7 @@ class WhatsAppService {
       await sendToWhatsApp(data);
       
     } catch (error) {
-      console.log("Error: ", error);
+      console.error("Error: ", error);
     }
   }
 
@@ -288,7 +288,7 @@ class WhatsAppService {
       
       await sendToWhatsApp(data);
     } catch (error) {
-      console.log("Error: ", error);
+      console.error("Error: ", error);
     }
   }
 }
