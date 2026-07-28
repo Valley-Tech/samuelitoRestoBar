@@ -6,7 +6,7 @@ import { enviarPedidoALoggro } from './loggroService.js';
 import { saveUserDataByNumber } from './googleSheetsService.js';
 import { downloadImageFromMeta } from './httpRequest/sendToWhatsApp.js';
 import { uploadToPublicStorage } from './awsS3Service.js';
-import { logAxiosError } from '../printDetailError.js';
+import { logAxiosError } from './printDetailError.js';
 
 function isWithinBusinessHours() {
   // Hora actual en Colombia (GMT-5)
