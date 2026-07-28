@@ -1,5 +1,4 @@
 import sendToWhatsApp from "../services/httpRequest/sendToWhatsApp.js";
-import { printDetailedError } from './printDetailError.js';
 
 class WhatsAppService {
   async sendMessage(to, body, messageId) {
@@ -189,7 +188,7 @@ class WhatsAppService {
   
     await sendToWhatsApp(data);
     } catch (error) {
-      printDetailedError(error);
+      console.error("Error: ", error);
     }
   }
   
