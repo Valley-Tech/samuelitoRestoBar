@@ -925,6 +925,8 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
     if (screen === "SUMMARY") {
       if (datosPedido.datos.address) {
         (datosPedido.monto += 3000).toLocaleString('es-CO');
+      } else {
+        datosPedido.datos.address = "Recogida en restaurante";
       }
       if (datosPedido.datos.pago === "Efectivo") {
         response = "✅¡Pedido recibido!\nPronto nos pondremos en contacto contigo! 🤗";
