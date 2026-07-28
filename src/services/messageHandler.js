@@ -6,7 +6,7 @@ import { enviarPedidoALoggro } from './loggroService.js';
 import { saveUserDataByNumber } from './googleSheetsService.js';
 import { downloadImageFromMeta } from './httpRequest/sendToWhatsApp.js';
 import { uploadToPublicStorage } from './awsS3Service.js';
-const { logAxiosError } = require('../printDetailError');
+import { logAxiosError } from '../printDetailError.js';
 
 function isWithinBusinessHours() {
   // Hora actual en Colombia (GMT-5)
@@ -150,7 +150,7 @@ class MessageHandler {
         return;
       }
   } catch (error) {
-    logAxiosError('sendToWhatsApp', error);
+    logAxiosError('Error: ', error);
     throw error;
   }
 }

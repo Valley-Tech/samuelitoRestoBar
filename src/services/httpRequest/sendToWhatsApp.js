@@ -1,6 +1,6 @@
 import axios from "axios";
 import config from '../../config/env.js';
-const { logAxiosError } = require('../printDetailError');
+import { logAxiosError } from '../printDetailError.js';
 
 // Descarga la imagen de WhatsApp usando el token de Meta
 export const downloadImageFromMeta = async (imageUrl) => {
