@@ -150,7 +150,7 @@ class MessageHandler {
         return;
       }
   } catch (error) {
-    printDetailedError(error);
+    console.error("Error:", error);
   }
 }
 
