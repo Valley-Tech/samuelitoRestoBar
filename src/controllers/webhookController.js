@@ -45,7 +45,6 @@ class WebhookController {
       return res.sendStatus(200); // Ignora el mensaje
     }
     const senderInfo = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
-    console.log("Info del remitente: ", senderInfo);
     if (message) {
       idNumber["numero"] = message.from;
       if (message?.type === 'interactive' && message?.interactive.type === 'nfm_reply') {
