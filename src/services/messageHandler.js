@@ -937,19 +937,20 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
 
   async respFlow(to, screen, datosReserva, datosPedido, pedidoStr) {
     let response;
+    const pedidoStrTemplate = pedidoStr.replace(/\n/g, '  |  ');
     if (screen === "SUMMARY") {
       if (datosPedido.datos.address) {
         (datosPedido.monto += 3000).toLocaleString('es-CO');
       } else {
         datosPedido.datos.address = "Recogida en restaurante";
       }
-      const pedidoStrTemplate = pedidoStr.replace(/\n/g, '  |  ');
       if (datosPedido.datos.pago === "Efectivo") {
         const templateVars = [
           datosPedido.datos.name,
           datosPedido.datos.phone,
           datosPedido.datos.address,
           pedidoStrTemplate,
+          // datosPedido.datos.pago,
           datosPedido.monto ? datosPedido.monto.toLocaleString('es-CO') : ""
         ];
 
@@ -962,19 +963,19 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
         for (const numero of numerosOficiales) {
           await whatsappService.sendTemplateComprobantePago(
             numero,
-            "https://sorteo-chatbot.s3.us-east-1.amazonaws.com/descarga.jfif",
+            "https://micarta.s3.us-east-1.amazonaws.com/Copia+de+Reserva+tu+mesa.jpg",
             templateVars
           )
         };
         response = "✅¡Pedido recibido!\nPronto nos pondremos en contacto contigo! 🤗";
         await this.menuOpcionalHiring(to);
       } else if (datosPedido.datos.pago === "PSE") {
-        // datosPedido.monto-= 19000;
+        // datosPedido.monto-= 18500;
         try {
           userOrderDataMap[to] = {
             ...datosPedido.datos,
             monto: datosPedido.monto,
-            pedidoStr
+            pedidoStrTemplate
           };
           // Generar enlace de pago WOMPi
           const idlink = await createWompiPaymentLink(
@@ -1117,7 +1118,7 @@ async handleWompiEvent(transaction, telefono) {
         for (const numero of numerosOficiales) {
           await whatsappService.sendTemplateComprobantePago(
             numero,
-            "https://sorteo-chatbot.s3.us-east-1.amazonaws.com/descarga.jfif",
+            "https://micarta.s3.us-east-1.amazonaws.com/Copia+de+Reserva+tu+mesa.jpg",
             templateVars
           );
         }
