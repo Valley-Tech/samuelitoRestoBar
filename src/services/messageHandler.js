@@ -969,7 +969,13 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
         response = "✅¡Pedido recibido!\nPronto nos pondremos en contacto contigo! 🤗";
         await this.menuOpcionalHiring(to);
       } else if (datosPedido.datos.pago === "PSE") {
+        datosPedido.monto-= 19000;
         try {
+          userOrderDataMap[to] = {
+            ...datosPedido.datos,
+            monto: datosPedido.monto,
+            pedidoStrTemplate
+          };
           // Generar enlace de pago WOMPi
           const idlink = await createWompiPaymentLink(
             datosPedido.monto * 100, // Monto en centavos
@@ -978,7 +984,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
           );
           transactionToPhoneMap[idlink] = to;
           // Enviar mensaje con el enlace de pago
-          response = `*Resumen de tu pedido*🛒:\n\n${pedidoStr}\n*Total:* $${datosPedido.monto.toLocaleString('es-CO')} COP\n\nUtiliza el siguiente *link de pago*:\n\nhttps://checkout.wompi.co/l/${idlink}\n\nLuego, al realizar el pago automáticamente te lo confirmamos! 😊`;
+          response = `*Resumen de tu pedido*🛒:\n\n${pedidoStr}\n*Total:* $${datosPedido.monto.toLocaleString('es-CO')} COP\n\nUtiliza el siguiente *link de pago*:\n\nhttps://checkout.wompi.co/l/${idlink}\n\nLuego de realizar el pago espera unos segundos y automáticamente te lo confirmamos! 😊`;
         } catch (error) {
           response = "Hubo un problema al generar el enlace de pago. Por favor, intenta nuevamente.";
         }
@@ -1071,6 +1077,37 @@ async handleWompiEvent(transaction) {
 
       let statusMsg = "";
       if (status === "APPROVED") {
+
+        const datosUsuario = userOrderDataMap[message.from] || {};
+        // 3. Enviar la imagen al número oficial
+        const nombre = datosUsuario.name || "";
+        const celular = datosUsuario.phone || "";
+        const direccion = datosUsuario.address || "";
+        const monto = datosUsuario.monto || "";
+        const pedido = datosUsuario.pedidoStr || "";
+
+        const templateVars = [
+          nombre,
+          celular,
+          direccion,
+          pedido,
+          monto ? monto.toLocaleString('es-CO') : "",
+        ];
+
+        const numerosOficiales = [
+          "573153652520", // Número secundario
+          "573137517489", // Número principal
+          "573162822076"
+        ];
+
+        for (const numero of numerosOficiales) {
+          await whatsappService.sendTemplateComprobantePago(
+            numero,
+            "https://sorteo-chatbot.s3.us-east-1.amazonaws.com/descarga.jfif",
+            templateVars
+          );
+        }
+
         statusMsg = "✅ ¡Pago aprobado!\nTu pedido está confirmado.\nPronto nos pondremos en contacto contigo.";
         await this.menuOpcionalHiring(phone);
       } else if (status === "DECLINED") {
