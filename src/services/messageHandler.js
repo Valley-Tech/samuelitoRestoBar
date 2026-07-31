@@ -144,7 +144,8 @@ class MessageHandler {
         await this.respFlow(message.from, screen, datosReserva, datosPedido, pedidoStr);
         await whatsappService.markAsRead(message.id);
       } else {
-        const msg = "¡Hola! 😊\nNuestro horario de atención es *todos los días* de *12:00 p.m. a 10:00 p.m.*\nSi necesitas *Reservar* puedes hacerlo en el *botón de Reservas* o si prefieres hablar con la IA🤖 haz tu pregunta con el signo ❔\n\n ¡Gracias por escribirnos! 😊";
+        const name = this.getSenderName(senderInfo).match(/^(\w+)/)?.[1];
+        const msg = `¡Hola! ${name} 😊\nNuestro horario de atención es *todos los días* de *12:00 p.m. a 10:00 p.m.*\nSi necesitas *Reservar* puedes hacerlo en el *botón de Reservas* o si prefieres hablar con la IA🤖 haz tu pregunta con el signo ❓\n\n ¡Gracias por escribirnos! 😊`;
         await this.menuReserva(message.from);
         await whatsappService.sendMessage(message.from, msg, message.id);
         return;
@@ -156,8 +157,22 @@ class MessageHandler {
 }
 
   isGreeting(message) {
-    const greetings = ["hola", "hi", "ok", "listo", "bien", "bueno", "hello", "HL", "Oe", "buenas", "buenos dias", "buenas tardes", "buenas noches", "saludos", "como estás", "hl", "gracias", "muchas gracias"];
-    return greetings.includes(message);
+    const lower = message.toLowerCase();
+    return (
+      lower.includes('hola') ||
+      lower.includes('hello') ||
+      lower.includes('hl') ||
+      lower.includes('hi') ||
+      lower.includes('buenas') ||
+      lower.includes('buenos dias') ||
+      lower.includes('buenos días') ||
+      lower.includes('buenas tardes') ||
+      lower.includes('buenas noches') ||
+      lower.includes('saludos') ||
+      lower.includes('como estás') ||
+      lower.includes('gracias') ||
+      lower.includes('muchas gracias')
+    );
   }
 
   async getDay() {
