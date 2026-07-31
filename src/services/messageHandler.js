@@ -145,7 +145,7 @@ class MessageHandler {
         await whatsappService.markAsRead(message.id);
       } else {
         const name = this.getSenderName(senderInfo).match(/^(\w+)/)?.[1];
-        const msg = `¡Hola! ${name} 😊\nNuestro horario de atención es *todos los días* de *12:00 p.m. a 10:00 p.m.*\nSi necesitas *Reservar* puedes hacerlo en el *botón de Reservas* o si prefieres hablar con la IA🤖 haz tu pregunta con el signo ❓\n\n ¡Gracias por escribirnos! 😊`;
+        const msg = `¡Hola ${name}! 😊\nNuestro horario de atención es *todos los días* de *12:00 p.m. a 10:00 p.m.*\nSi necesitas *Reservar* puedes hacerlo en el *botón de Reservas* o si prefieres hablar con la IA🤖 haz tu pregunta con el signo ❓\n\n ¡Gracias por escribirnos! 😊`;
         await this.menuReserva(message.from);
         await whatsappService.sendMessage(message.from, msg, message.id);
         return;
@@ -234,7 +234,7 @@ class MessageHandler {
 }
 
   getSenderName(senderInfo) {
-    return senderInfo.profile?.name || senderInfo.wa_id || "Cliente";
+    return senderInfo.profile?.name || senderInfo.profile?.username || "Cliente";
   }
 
   async sendWelcomeMessage(to, messageId, senderInfo) {
