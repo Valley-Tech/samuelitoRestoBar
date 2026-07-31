@@ -969,7 +969,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
         response = "✅¡Pedido recibido!\nPronto nos pondremos en contacto contigo! 🤗";
         await this.menuOpcionalHiring(to);
       } else if (datosPedido.datos.pago === "PSE") {
-        datosPedido.monto-= 19000;
+        // datosPedido.monto-= 19000;
         try {
           userOrderDataMap[to] = {
             ...datosPedido.datos,
