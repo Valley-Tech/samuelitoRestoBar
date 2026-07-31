@@ -1044,7 +1044,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
   }
 }
 
-async handleWompiEvent(transaction) {
+async handleWompiEvent(transaction, telefono) {
     try {
       const transactionId = transaction.id;
       const paymentLinkId = transaction.payment_link_id;
@@ -1078,7 +1078,21 @@ async handleWompiEvent(transaction) {
       let statusMsg = "";
       if (status === "APPROVED") {
 
-        const datosUsuario = userOrderDataMap[message.from] || {};
+        statusMsg = "✅ ¡Pago aprobado!\nTu pedido está confirmado.\nPronto nos pondremos en contacto contigo.";
+        await this.menuOpcionalHiring(phone);
+      } else if (status === "DECLINED") {
+        statusMsg = "❌ El pago fue rechazado\nPor favor, revisa tu medio de pago. Si deseas reintentar, utiliza el mismo link de pago que te enviamos anteriormente.";
+      } else if (status === "VOIDED") {
+        statusMsg = "⚠️ El pago fue anulado\nSi tienes dudas, contáctanos. Si deseas reintentar, utiliza el mismo link de pago que te enviamos anteriormente.";
+      } else if (status === "ERROR") {
+        statusMsg = "⚠️ Tu método de pago está presentando Error.\nPor favor, revísalo e intenta nuevamente.";
+      } else if (status === "PENDING") {
+        statusMsg = "⏳ Tu pago está pendiente de confirmación.\nTe avisaremos cuando se apruebe.";
+      } else {
+        statusMsg = `El estado de tu transacción es: ${status}`;
+      }
+
+      const datosUsuario = userOrderDataMap[telefono] || {};
         // 3. Enviar la imagen al número oficial
         const nombre = datosUsuario.name || "";
         const celular = datosUsuario.phone || "";
@@ -1107,20 +1121,6 @@ async handleWompiEvent(transaction) {
             templateVars
           );
         }
-
-        statusMsg = "✅ ¡Pago aprobado!\nTu pedido está confirmado.\nPronto nos pondremos en contacto contigo.";
-        await this.menuOpcionalHiring(phone);
-      } else if (status === "DECLINED") {
-        statusMsg = "❌ El pago fue rechazado\nPor favor, revisa tu medio de pago. Si deseas reintentar, utiliza el mismo link de pago que te enviamos anteriormente.";
-      } else if (status === "VOIDED") {
-        statusMsg = "⚠️ El pago fue anulado\nSi tienes dudas, contáctanos. Si deseas reintentar, utiliza el mismo link de pago que te enviamos anteriormente.";
-      } else if (status === "ERROR") {
-        statusMsg = "⚠️ Tu método de pago está presentando Error.\nPor favor, revísalo e intenta nuevamente.";
-      } else if (status === "PENDING") {
-        statusMsg = "⏳ Tu pago está pendiente de confirmación.\nTe avisaremos cuando se apruebe.";
-      } else {
-        statusMsg = `El estado de tu transacción es: ${status}`;
-      }
  
         await whatsappService.sendMessage(phone, statusMsg);
 

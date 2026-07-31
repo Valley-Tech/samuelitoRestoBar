@@ -215,9 +215,10 @@ class WebhookController {
 
   async handleEvent(req, res) {
     try {
+      const numero = idNumber["numero"]
       const event = req.body;
       if (event && event.data && event.data.transaction) {
-        await messageHandler.handleWompiEvent(event.data.transaction);
+        await messageHandler.handleWompiEvent(event.data.transaction,numero);
       }
       res.status(200).send('Evento recibido');
     } catch (error) {
