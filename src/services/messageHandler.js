@@ -96,6 +96,7 @@ class MessageHandler {
         const celular = datosUsuario.phone || "";
         const direccion = datosUsuario.address || "";
         const monto = datosUsuario.monto || "";
+        const mediopago = datosUsuario.pago || "";
         const pedido = datosUsuario.pedidoStr || "";
 
         const templateVars = [
@@ -103,6 +104,7 @@ class MessageHandler {
           celular,
           direccion,
           pedido,
+          mediopago,
           monto ? monto.toLocaleString('es-CO') : "",
         ];
 
