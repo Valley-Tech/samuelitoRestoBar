@@ -966,7 +966,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
         for (const numero of numerosOficiales) {
           await whatsappService.sendTemplateComprobantePago(
             numero,
-            "mensaje_nuevo_pedido",
+            "comprobante_pago",
             "https://micarta.s3.us-east-1.amazonaws.com/Copia+de+Reserva+tu+mesa.jpg",
             templateVars
           )
@@ -1124,7 +1124,7 @@ async handleWompiEvent(transaction, telefono) {
         for (const numero of numerosOficiales) {
           await whatsappService.sendTemplateComprobantePago(
             numero,
-            "mensaje_nuevo_pedido",
+            "comprobante_pago",
             "https://micarta.s3.us-east-1.amazonaws.com/Copia+de+Reserva+tu+mesa.jpg",
             templateVars
           );
