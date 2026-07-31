@@ -115,9 +115,10 @@ class MessageHandler {
         for (const numero of numerosOficiales) {
           await whatsappService.sendTemplateComprobantePago(
             numero,
+            "comprobante_pago",
             publicUrl,
             templateVars
-          );
+          )
         }
 
         const msg = "Gracias por compartirnos el comprobante de tu pago ✅\n\nPronto nos pondremos en contacto contigo para confirmar tu pedido 😊";
@@ -950,7 +951,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
           datosPedido.datos.phone,
           datosPedido.datos.address,
           pedidoStrTemplate,
-          // datosPedido.datos.pago,
+          datosPedido.datos.pago,
           datosPedido.monto ? datosPedido.monto.toLocaleString('es-CO') : ""
         ];
 
@@ -963,6 +964,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
         for (const numero of numerosOficiales) {
           await whatsappService.sendTemplateComprobantePago(
             numero,
+            "mensaje_nuevo_pedido",
             "https://micarta.s3.us-east-1.amazonaws.com/Copia+de+Reserva+tu+mesa.jpg",
             templateVars
           )
@@ -975,7 +977,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
           userOrderDataMap[to] = {
             ...datosPedido.datos,
             monto: datosPedido.monto,
-            pedidoStrTemplate
+            pedidoStr: pedidoStrTemplate
           };
           // Generar enlace de pago WOMPi
           const idlink = await createWompiPaymentLink(
@@ -1099,6 +1101,7 @@ async handleWompiEvent(transaction, telefono) {
         const celular = datosUsuario.phone || "";
         const direccion = datosUsuario.address || "";
         const monto = datosUsuario.monto || "";
+        const mediopago = datosUsuario.pago || "";
         const pedido = datosUsuario.pedidoStr || "";
 
         const templateVars = [
@@ -1106,6 +1109,7 @@ async handleWompiEvent(transaction, telefono) {
           celular,
           direccion,
           pedido,
+          mediopago,
           monto ? monto.toLocaleString('es-CO') : "",
         ];
 
@@ -1118,6 +1122,7 @@ async handleWompiEvent(transaction, telefono) {
         for (const numero of numerosOficiales) {
           await whatsappService.sendTemplateComprobantePago(
             numero,
+            "mensaje_nuevo_pedido",
             "https://micarta.s3.us-east-1.amazonaws.com/Copia+de+Reserva+tu+mesa.jpg",
             templateVars
           );

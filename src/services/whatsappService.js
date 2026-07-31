@@ -112,7 +112,7 @@ class WhatsAppService {
     await sendToWhatsApp(data);
   }
 
-  async sendTemplateComprobantePago(to, imageUrl, variables) {
+  async sendTemplateComprobantePago(to, template, imageUrl, variables) {
     try {
       const safeVariables = variables.map(v =>
       String(v ?? '')
@@ -125,7 +125,7 @@ class WhatsAppService {
       to: to,
       type: 'template',
       template: {
-        name: "comprobante_pago",
+        name: template,
         language: { code: "es_CO" },
         components: [
           {
