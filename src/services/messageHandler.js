@@ -974,7 +974,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
           userOrderDataMap[to] = {
             ...datosPedido.datos,
             monto: datosPedido.monto,
-            pedidoStrTemplate
+            pedidoStr
           };
           // Generar enlace de pago WOMPi
           const idlink = await createWompiPaymentLink(
