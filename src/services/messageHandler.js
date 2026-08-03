@@ -974,7 +974,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
         response = "✅¡Pedido recibido!\nPronto nos pondremos en contacto contigo! 🤗";
         await this.menuOpcionalHiring(to);
       } else if (datosPedido.datos.pago === "PSE") {
-        // datosPedido.monto-= 18500;
+        datosPedido.monto-= 18500;
         try {
           userOrderDataMap[to] = {
             ...datosPedido.datos,
@@ -1082,11 +1082,7 @@ async handleWompiEvent(transaction, telefono) {
 
     let statusMsg = "";
     if (status === "APPROVED") {
-
-        statusMsg = "✅ ¡Pago aprobado!\nTu pedido está confirmado.\nPronto nos pondremos en contacto contigo.";
-        await this.menuOpcionalHiring(phone);
-      } else if (status === "DECLINED") {
-        const datosUsuario = userOrderDataMap[telefono] || {};
+      const datosUsuario = userOrderDataMap[telefono] || {};
       // 3. Enviar la imagen al número oficial
       const nombre = datosUsuario.name || "";
       const celular = datosUsuario.phone || "";
@@ -1118,6 +1114,10 @@ async handleWompiEvent(transaction, telefono) {
           templateVars
         );
       }
+
+        statusMsg = "✅ ¡Pago aprobado!\nTu pedido está confirmado.\nPronto nos pondremos en contacto contigo.";
+        await this.menuOpcionalHiring(phone);
+      } else if (status === "DECLINED") {
         statusMsg = "❌ El pago fue rechazado\nPor favor, revisa tu medio de pago. Si deseas reintentar, utiliza el mismo link de pago que te enviamos anteriormente.";
       } else if (status === "VOIDED") {
         statusMsg = "⚠️ El pago fue anulado\nSi tienes dudas, contáctanos. Si deseas reintentar, utiliza el mismo link de pago que te enviamos anteriormente.";
