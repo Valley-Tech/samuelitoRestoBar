@@ -1080,12 +1080,44 @@ async handleWompiEvent(transaction, telefono) {
     const fechayhora = paymentRowMap[phone]
     await saveUserDataByNumber({ numero: phone, fechayhora, estado: estadoPago }, spreadsheetId);
 
-      let statusMsg = "";
-      if (status === "APPROVED") {
+    let statusMsg = "";
+    if (status === "APPROVED") {
 
         statusMsg = "✅ ¡Pago aprobado!\nTu pedido está confirmado.\nPronto nos pondremos en contacto contigo.";
         await this.menuOpcionalHiring(phone);
       } else if (status === "DECLINED") {
+        const datosUsuario = userOrderDataMap[telefono] || {};
+      // 3. Enviar la imagen al número oficial
+      const nombre = datosUsuario.name || "";
+      const celular = datosUsuario.phone || "";
+      const direccion = datosUsuario.address || "";
+      const monto = datosUsuario.monto || "";
+      const mediopago = datosUsuario.pago || "";
+      const pedido = datosUsuario.pedidoStr || "";
+
+      const templateVars = [
+        nombre,
+        celular,
+        direccion,
+        pedido,
+        mediopago,
+        monto ? monto.toLocaleString('es-CO') : "",
+      ];
+
+      const numerosOficiales = [
+        "573153652520", // Número secundario
+        "573137517489", // Número principal
+        "573162822076"
+      ];
+
+      for (const numero of numerosOficiales) {
+        await whatsappService.sendTemplateComprobantePago(
+          numero,
+          "mensaje_nuevo_pedido",
+          "https://micarta.s3.us-east-1.amazonaws.com/Copia+de+Reserva+tu+mesa.jpg",
+          templateVars
+        );
+      }
         statusMsg = "❌ El pago fue rechazado\nPor favor, revisa tu medio de pago. Si deseas reintentar, utiliza el mismo link de pago que te enviamos anteriormente.";
       } else if (status === "VOIDED") {
         statusMsg = "⚠️ El pago fue anulado\nSi tienes dudas, contáctanos. Si deseas reintentar, utiliza el mismo link de pago que te enviamos anteriormente.";
@@ -1096,41 +1128,8 @@ async handleWompiEvent(transaction, telefono) {
       } else {
         statusMsg = `El estado de tu transacción es: ${status}`;
       }
-
-      const datosUsuario = userOrderDataMap[telefono] || {};
-        // 3. Enviar la imagen al número oficial
-        const nombre = datosUsuario.name || "";
-        const celular = datosUsuario.phone || "";
-        const direccion = datosUsuario.address || "";
-        const monto = datosUsuario.monto || "";
-        const mediopago = datosUsuario.pago || "";
-        const pedido = datosUsuario.pedidoStr || "";
-
-        const templateVars = [
-          nombre,
-          celular,
-          direccion,
-          pedido,
-          mediopago,
-          monto ? monto.toLocaleString('es-CO') : "",
-        ];
-
-        const numerosOficiales = [
-          "573153652520", // Número secundario
-          "573137517489", // Número principal
-          "573162822076"
-        ];
-
-        for (const numero of numerosOficiales) {
-          await whatsappService.sendTemplateComprobantePago(
-            numero,
-            "mensaje_nuevo_pedido",
-            "https://micarta.s3.us-east-1.amazonaws.com/Copia+de+Reserva+tu+mesa.jpg",
-            templateVars
-          );
-        }
  
-        await whatsappService.sendMessage(phone, statusMsg);
+      await whatsappService.sendMessage(phone, statusMsg);
 
     } catch (error) {
       console.error("Error en handleWompiEvent:", error);
