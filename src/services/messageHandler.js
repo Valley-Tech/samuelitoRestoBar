@@ -1067,15 +1067,17 @@ async handleWompiEvent(transaction, telefono) {
         console.error("Error consultando el estado de la transacción:", error);
         return;
       }
-
+      console.log(`Estado de la transacción ${transactionId}: ${status}`);
       let estadoPago;
     if (status === "APPROVED") {
       estadoPago = "Pagado";
     }
-    if (status === "DECLINED" || status === "VOIDED") {
+    else if (status === "DECLINED" || status === "VOIDED" || status === "ERROR") {
       estadoPago = "Rechazado";
-    } else {
+    } else if (status === "PENDING") {
       estadoPago = "Pendiente";
+    } else {
+      estadoPago = status;
     }
     const fechayhora = paymentRowMap[phone]
     await saveUserDataByNumber({ numero: phone, fechayhora, estado: estadoPago }, spreadsheetId);
@@ -1117,12 +1119,8 @@ async handleWompiEvent(transaction, telefono) {
 
         statusMsg = "✅ ¡Pago aprobado!\nTu pedido está confirmado.\nPronto nos pondremos en contacto contigo.";
         await this.menuOpcionalHiring(phone);
-      } else if (status === "DECLINED") {
+      } else if (status === "DECLINED" || status === "VOIDED" || status === "ERROR") {
         statusMsg = "❌ El pago fue rechazado\nPor favor, revisa tu medio de pago. Si deseas reintentar, utiliza el mismo link de pago que te enviamos anteriormente.";
-      } else if (status === "VOIDED") {
-        statusMsg = "⚠️ El pago fue anulado\nSi tienes dudas, contáctanos. Si deseas reintentar, utiliza el mismo link de pago que te enviamos anteriormente.";
-      } else if (status === "ERROR") {
-        statusMsg = "⚠️ Tu método de pago está presentando Error.\nPor favor, revísalo e intenta nuevamente.";
       } else if (status === "PENDING") {
         statusMsg = "⏳ Tu pago está pendiente de confirmación.\nTe avisaremos cuando se apruebe.";
       } else {
