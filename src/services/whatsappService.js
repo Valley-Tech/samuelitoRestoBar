@@ -5,7 +5,7 @@ class WhatsAppService {
     try {
       const data = {
         messaging_product: 'whatsapp',
-        to,
+        to: to,
         text: { body },
       };
 
@@ -33,7 +33,7 @@ class WhatsAppService {
     try {
       const data = {
         messaging_product: 'whatsapp',
-        to,
+        to: to,
         type: 'interactive',
         interactive: {
           type: "button",
@@ -55,7 +55,7 @@ class WhatsAppService {
       const data = {
         recipient_type: 'individual',
         messaging_product: 'whatsapp',
-        to,
+        to: to,
         type: 'interactive',
         interactive: {
           type: "flow",
@@ -155,7 +155,7 @@ class WhatsAppService {
       const data = {
         recipient_type: 'individual',
         messaging_product: 'whatsapp',
-        to,
+        to: to,
         type: 'interactive',
         interactive: {
           type: "flow",
@@ -181,7 +181,7 @@ class WhatsAppService {
       const data = {
         recipient_type: 'individual',
         messaging_product: 'whatsapp',
-        to,
+        to: to,
         type: 'interactive',
         interactive: template
       };
@@ -197,7 +197,7 @@ class WhatsAppService {
       const data = {
         recipient_type: 'individual',
         messaging_product: 'whatsapp',
-        to,
+        to: to,
         type: 'interactive',
         interactive: {
           type: "flow",
@@ -243,7 +243,7 @@ class WhatsAppService {
       const data = {
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
-        to,
+        to: to,
         type: type,
         ...mediaObject,
       };
@@ -258,7 +258,7 @@ class WhatsAppService {
     try {
       const data = {
         messaging_product: 'whatsapp',
-        to,
+        to: to,
         type: 'contacts',
         contacts: [contact],
       };
@@ -275,7 +275,7 @@ class WhatsAppService {
       
       const data = {
         messaging_product: 'whatsapp',
-        to,
+        to: to,
         type: 'location',
         location: {
           latitude: latitude,
