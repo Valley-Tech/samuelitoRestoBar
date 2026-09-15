@@ -5,6 +5,7 @@ import { nextScreen } from "../services/flowReserva.js";
 import { nextEncuesta } from "../services/flowEncuesta.js";
 import messageHandler from '../services/messageHandler.js';
 import crypto from "crypto";
+import { CRM_MODE, forwardWebhook, toMetaMessage } from '../services/crmAdapter.js';
 
 const privateKey = config.PRIVATE_KEY;
 function isRequestSignatureValid(req) {
@@ -35,17 +36,42 @@ let precioTotal = 0;
 let pedidoStr;
 const idNumber = {}
 class WebhookController {  
+  /**
+   * Webhook de Meta (modo espejo). Se reenvía al CRM ANTES del filtro por
+   * número para que el CRM vea también estados y eventos. Se responde 200
+   * enseguida: Meta reintenta (y duplica) si el bot tarda en contestar.
+   */
   async handleIncoming(req, res) {
+    if (CRM_MODE !== 'gateway') forwardWebhook(req.body); // sin await: no frena la respuesta a Meta
+
     const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
-    
     const recipientPhone = req.body.entry?.[0]?.changes[0]?.value?.metadata?.phone_number_id;
-    
+
     // Solo responde si el mensaje es para el número de este bot
     if (recipientPhone !== process.env.BUSINESS_PHONE) {
       return res.sendStatus(200); // Ignora el mensaje
     }
     const senderInfo = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
-    if (message) {
+    res.sendStatus(200);
+    if (message) await this.dispatch(message, senderInfo);
+  }
+
+  /**
+   * Evento del CRM (modo gateway): el CRM ya guardó el mensaje y comprobó que
+   * el bot está activo en esa conversación. Se reconstruye el mensaje con el
+   * formato de Meta y se entra por la misma lógica de siempre.
+   */
+  async handleCrmEvent(event) {
+    if (event.event !== 'message.received' || !event.message) return;
+    // Doble seguro: el CRM ya filtra por "Atiende", pero si BUSINESS_PHONE está definido solo se atiende ese número.
+    if (process.env.BUSINESS_PHONE && event.integration?.phoneNumberId && event.integration.phoneNumberId !== process.env.BUSINESS_PHONE) return;
+    const { message, senderInfo } = toMetaMessage(event);
+    await this.dispatch(message, senderInfo);
+  }
+
+  /** La lógica original de handleIncoming, intacta, usada por los dos caminos. */
+  async dispatch(message, senderInfo) {
+    try {
       idNumber["numero"] = message.from;
       if (message?.type === 'interactive' && message?.interactive.type === 'nfm_reply') {
         await messageHandler.handleIncomingMessage(message, senderInfo, ventana, datosReserva, datosPedido, pedidoStr);
@@ -159,9 +185,10 @@ class WebhookController {
     else {
       await messageHandler.handleIncomingMessage(message, senderInfo);
     }
+    } catch (error) {
+      console.error('Error procesando el mensaje:', error);
+    }
   }
-  res.sendStatus(200);
-}
 
   async handleFlow(req, res) {
     if (!privateKey) {
