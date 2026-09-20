@@ -111,7 +111,6 @@ class MessageHandler {
         const numerosOficiales = [
           "573153652520", // Número secundario
           "573137517489", // Número principal
-          "573162822076"
         ];
 
         for (const numero of numerosOficiales) {
@@ -960,7 +959,6 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
         const numerosOficiales = [
           "573153652520", // Número secundario
           "573137517489", // Número principal
-          "573162822076"
         ];
 
         for (const numero of numerosOficiales) {
@@ -1104,7 +1102,6 @@ async handleWompiEvent(transaction, telefono) {
       const numerosOficiales = [
         "573153652520", // Número secundario
         "573137517489", // Número principal
-        "573162822076"
       ];
 
       for (const numero of numerosOficiales) {
