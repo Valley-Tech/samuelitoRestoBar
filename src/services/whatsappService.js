@@ -182,8 +182,8 @@ class WhatsAppService {
         recipient_type: 'individual',
         messaging_product: 'whatsapp',
         to: to,
-        type: 'interactive',
-        interactive: template
+        type: 'template',
+        template: template
       };
   
     await sendToWhatsApp(data);
