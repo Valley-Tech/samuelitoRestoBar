@@ -870,9 +870,10 @@ else {
     let response;
     switch (option) {
       case 'option_1':
-        await this.menuCarta(to);
-        await this.menuCarta2(to);
-        this.botonSi(to);
+        // await this.menuCarta(to);
+        // await this.menuCarta2(to);
+        // this.botonSi(to);
+        await this.catalogo(to);
         idNumber["numero"] = to;
         break;
       case 'option_2':
