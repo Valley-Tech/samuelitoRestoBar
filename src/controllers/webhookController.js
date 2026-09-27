@@ -93,7 +93,6 @@ class WebhookController {
         "5dc733ad7c14810dfd3fec3f" : "Churrasco de Cerdo",
         "68203e8d7f735e5e48b7ec3b" : "Churrasco de Cerdo en Salsa con Tocineta",
         "5e5ae290338d200e065c3577" : "Steak Pimienta",
-        "67981d4d8460dcaf720f2284" : "Burger La Nuestra",
         "5dcf187deea63f0df843be1e" : "Cazuela de Mariscos",
         "5dbcb3d9c557e50e67fec005" : "Costillas BBQ Premium",
         "6311736932c31c05fbf10f89" : "Churrasco de Cerdo Gratinado",
@@ -118,13 +117,12 @@ class WebhookController {
         "61a119621880235f6d5b4644" : "Ensalada con Atún",
         "61a119421fd14430485f8d96" : "Ensalada con Pollo",
         "618b0decad2f690565ff0342" : "Sushi Samuelito Rolls",
-        "67981a7ca9cfd2df9753864e" : "Burger la del Chef",
         "5f9b5636ef1e265d296b0fd3" : "Clasic Burger",
         "5dbcb612c557e50e67fec02b" : "Hamburguesa Felipa",
         "5dbcb645c557e50e67fec02e" : "Samuelito Burger",
-        "67981bf757fc699d06fbe11c" : "Hot Dog Hawaiano",
-        "5ef55e5619721c49eb8bb24a" : "Hot Dog Clásico",
-        "5dbcb6a5c557e50e67fec03e" : "Hot Dog Suizo",
+        "67981bf757fc699d06fbe11c" : "Perro Hawaiano",
+        "5ef55e5619721c49eb8bb24a" : "Perro Clásico",
+        "5dbcb6a5c557e50e67fec03e" : "Perro Suizo",
         "5dbcb67cc557e50e67fec031" : "Salchipupera",
         "5dc7332e7c14810dfd3fec34" : "Salchipapa Tradicional",
         "5f9b3922ef1e265d296b0d95" : "Desgranado de la Casa",
@@ -157,11 +155,7 @@ class WebhookController {
         "639c9ba452617c1b981ee446" : "Malteada de Nutela",
         "65500860c2087c73f3b778a3" : "Malteada de Milo",
         "6133e235d145504ca38cbd7e" : "Malteada de Café",
-        "65550a945e11f905f75326f5" : "Copa de helado GOURMET",
-        "62b0b0e63996f328856ad5c3" : "Café EXPRESO",
-        "62b0b10f3996f328856ad5c6" : "Café AMERICANO",
-        "66f990de998c13da021a89ac" : "Café Balanceado",
-        "62b0b16b3996f328856ad5d1" : "Café Capuchino"
+        "65550a945e11f905f75326f5" : "Copa de helado GOURMET"
       };
       const order = message.order;
       productos = order.product_items;

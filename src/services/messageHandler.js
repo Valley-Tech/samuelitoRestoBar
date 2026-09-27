@@ -658,12 +658,6 @@ else {
             "title": "COMIDAS RÁPIDAS",
             "product_items": [
               {
-                "product_retailer_id": "67981d4d8460dcaf720f2284"
-              },
-              {
-                "product_retailer_id": "67981a7ca9cfd2df9753864e"
-              },
-              {
                 "product_retailer_id": "5f9b5636ef1e265d296b0fd3"
               },
               {
@@ -695,23 +689,6 @@ else {
               },
             ]
           },
-          {
-            "title": "CAFÉS",
-            "product_items": [
-              {
-                "product_retailer_id": "62b0b0e63996f328856ad5c3",
-              },
-              {
-                "product_retailer_id": "62b0b10f3996f328856ad5c6"
-              },
-              {
-                "product_retailer_id": "66f990de998c13da021a89ac"
-              },
-              {
-                "product_retailer_id": "62b0b16b3996f328856ad5d1"
-              },
-            ]
-          }
         ]
       } 
   }
@@ -1259,11 +1236,7 @@ completeOrder(productos, data) {
       "639c9ba452617c1b981ee446",
       "65500860c2087c73f3b778a3",
       "6133e235d145504ca38cbd7e",
-      "65550a945e11f905f75326f5",
-      "62b0b0e63996f328856ad5c3",
-      "62b0b10f3996f328856ad5c6",
-      "66f990de998c13da021a89ac",
-      "62b0b16b3996f328856ad5d1"
+      "65550a945e11f905f75326f5"
     ]
   };
 
