@@ -64,9 +64,11 @@ try {
 
   if (cmd === 'comprobar') {
     const data = await graph('GET', `${phone}/whatsapp_business_encryption`);
-    const remote = data.business_public_key ?? '';
+    // Meta responde { data: [ { business_public_key, business_public_key_signature_status } ] }
+    const entry = Array.isArray(data.data) ? data.data[0] ?? {} : data;
+    const remote = entry.business_public_key ?? '';
     console.log(`Número ${phone}`);
-    console.log(`  Clave en Meta:   ${remote ? fingerprint(remote) : '(ninguna registrada)'}  estado: ${data.business_public_key_signature_status ?? '—'}`);
+    console.log(`  Clave en Meta:   ${remote ? fingerprint(remote) : '(ninguna registrada)'}  estado: ${entry.business_public_key_signature_status ?? '—'}`);
     console.log(`  Clave del bot:   ${fingerprint(mine)}  (derivada de PRIVATE_KEY)`);
     if (remote && fingerprint(remote) === fingerprint(mine)) {
       console.log('\n✔ Coinciden. Si el error sigue, revisa que el Flow lo envíe este mismo número (BUSINESS_PHONE / CRM_PHONE_NUMBER_ID).');
@@ -78,7 +80,8 @@ try {
     const r = await graph('POST', `${phone}/whatsapp_business_encryption`, { business_public_key: mine });
     console.log(r.success ? `✔ Clave pública registrada en ${phone} (huella ${fingerprint(mine)}).` : JSON.stringify(r));
     const check = await graph('GET', `${phone}/whatsapp_business_encryption`);
-    console.log(`  Estado en Meta: ${check.business_public_key_signature_status ?? '—'}`);
+    const entry = Array.isArray(check.data) ? check.data[0] ?? {} : check;
+    console.log(`  Estado en Meta: ${entry.business_public_key_signature_status ?? '—'}`);
   } else {
     console.log('Uso: clave-flow.mjs comprobar|subir|publica [--phone id] [--token token]');
   }
