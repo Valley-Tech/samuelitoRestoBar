@@ -1,6 +1,44 @@
 import dotenv from 'dotenv';
+import crypto from 'node:crypto';
 
 dotenv.config();
+
+/**
+ * Normaliza una clave PEM leída de una variable de entorno.
+ *
+ * Al pegar la clave en el .env o en Railway se suelen perder los saltos de
+ * línea (quedan como "\n" literales) o se cuelan las comillas. OpenSSL 3
+ * entonces responde `DECODER routines::unsupported`, que no dice nada útil.
+ * Aquí se arregla antes de usarla, igual que ya se hace con la clave de Google.
+ */
+function normalizarPem(valor) {
+  let pem = String(valor ?? '').trim();
+  if ((pem.startsWith('"') && pem.endsWith('"')) || (pem.startsWith("'") && pem.endsWith("'"))) {
+    pem = pem.slice(1, -1);
+  }
+  pem = pem.replace(/\\r/g, '').replace(/\\n/g, '\n').replace(/\r/g, '');
+  return pem ? `${pem.trim()}\n` : '';
+}
+
+const PRIVATE_KEY = normalizarPem(process.env.PRIVATE_KEY);
+
+// Aviso al arrancar: mejor enterarse aquí que cuando Meta llame al endpoint.
+if (PRIVATE_KEY) {
+  try {
+    crypto.createPrivateKey({ key: PRIVATE_KEY, passphrase: process.env.PASSPHRASE });
+    console.log('[flows] clave privada cargada correctamente ✅');
+  } catch (error) {
+    const codigo = error.code || error.message;
+    console.error(`[flows] ❌ no se pudo leer la clave privada: ${codigo}`);
+    if (codigo === 'ERR_OSSL_BAD_DECRYPT') {
+      console.error('        La PASSPHRASE no coincide con la que usaste al crear private.pem.');
+    } else {
+      console.error('        Revisa PRIVATE_KEY: debe empezar por "-----BEGIN" y conservar los saltos de línea.');
+    }
+  }
+} else {
+  console.warn('[flows] PRIVATE_KEY vacío: el endpoint /flow no podrá descifrar.');
+}
 
 export default {
   WEBHOOK_VERIFY_TOKEN: process.env.WEBHOOK_VERIFY_TOKEN,
@@ -12,7 +50,8 @@ export default {
   HUGGINGFACE_API_KEY: process.env.HUGGINGFACE_API_KEY,
   NEBIUS_API_KEY: process.env.NEBIUS_API_KEY,
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-  PRIVATE_KEY: process.env.PRIVATE_KEY,
+  // PRIVATE_KEY: process.env.PRIVATE_KEY,
+  PRIVATE_KEY,
   APP_SECRET: process.env.APP_SECRET,
   PASSPHRASE: process.env.PASSPHRASE,
   URL_BASE_WOMPI: process.env.URL_BASE_WOMPI,
