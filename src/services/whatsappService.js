@@ -182,6 +182,22 @@ class WhatsAppService {
         recipient_type: 'individual',
         messaging_product: 'whatsapp',
         to: to,
+        type: 'interactive',
+        interactive: template
+      };
+  
+    await sendToWhatsApp(data);
+    } catch (error) {
+      console.error("Error: ", error);
+    }
+  }
+
+  async sendCatalogo(to, template) {
+    try {
+      const data = {
+        recipient_type: 'individual',
+        messaging_product: 'whatsapp',
+        to: to,
         type: 'template',
         template: template
       };

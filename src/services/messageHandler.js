@@ -860,7 +860,7 @@ else {
           }
       ]
     };
-    await whatsappService.sendMenu(to, template);
+    await whatsappService.sendCatalogo(to, template);
   }
 
   waiting = (delay, callback) => {
