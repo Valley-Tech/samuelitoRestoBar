@@ -47,9 +47,11 @@ class MessageHandler {
             await this.sendWelcomeMenu(message.from);
           } else if (incomingMessage === 'ayuda') {
             await this.helpMenu(message.from);
-          } else if (incomingMessage === 'carta') {
+          } else if (incomingMessage.includes('carta')) {
             await whatsappService.sendMessage(message.from, "Espera que cargue la carta... 📄");
             await this.sendMedia(message.from);
+          } else if (incomingMessage.includes('menu') || incomingMessage.includes('menú')) {
+            await this.catalogo(message.from);
           } else if (incomingMessage === 'ubicacion' || incomingMessage === 'ubicación') {
             await this.sendLocation(message.from);
           } else if (incomingMessage === 'asesor') {
@@ -109,7 +111,6 @@ class MessageHandler {
         ];
 
         const numerosOficiales = [
-          "573153652520", // Número secundario
           "573137517489", // Número principal
         ];
 
@@ -870,10 +871,10 @@ else {
     let response;
     switch (option) {
       case 'option_1':
-        // await this.menuCarta(to);
-        // await this.menuCarta2(to);
-        // this.botonSi(to);
-        await this.catalogo(to);
+        await this.menuCarta(to);
+        await this.menuCarta2(to);
+        this.botonSi(to);
+        // await this.catalogo(to);
         idNumber["numero"] = to;
         break;
       case 'option_2':
@@ -958,7 +959,6 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
         ];
 
         const numerosOficiales = [
-          "573153652520", // Número secundario
           "573137517489", // Número principal
         ];
 
@@ -1030,7 +1030,6 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
   const publicUrl = "https://micarta.s3.us-east-1.amazonaws.com/confirmacion_reserva.jpeg";
   const numerosOficiales = [
     to,
-    "573153652520",
     "573137517489"
   ];
   
@@ -1101,7 +1100,6 @@ async handleWompiEvent(transaction, telefono) {
       ];
 
       const numerosOficiales = [
-        "573153652520", // Número secundario
         "573137517489", // Número principal
       ];
 
