@@ -243,7 +243,7 @@ class MessageHandler {
   async sendWelcomeMessage(to, messageId, senderInfo) {
     try {
         const name = this.getSenderName(senderInfo).match(/^(\w+)/)?.[1];
-        const welcomeMessage = `¡Hola 👋 ${name}!\nBienvenid@ a *Samuelito RestoBar*🌭🍔🍟🍕\n\n¿En qué te puedo ayudar? 😊\n\nEscribe *ayuda* si la necesitas`;
+        const welcomeMessage = `¡Hola 👋 ${name}!\nBienvenid@ a *Samuelito RestoBar*🌭🍔🍟\n\n¿En qué te puedo ayudar? 😊\n\nEscribe *ayuda* si la necesitas`;
         await whatsappService.sendMessage(to, welcomeMessage, messageId);
     } catch (error) {
       printDetailedError(error);
@@ -881,7 +881,7 @@ else {
         await this.menuCarta3(to);
         break;
       default:
-        response = "Oops😔\nPorfa, elige una de las opciones del menú o escribe *Hola* para volver a empezar\nTambién, escribe *Carta* para verla.";
+        this.assistandState[message.from] = { step: 'question' };
     }
     if (response) {
       await whatsappService.sendMessage(to, response);
