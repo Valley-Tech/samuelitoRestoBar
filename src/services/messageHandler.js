@@ -881,7 +881,7 @@ else {
         await this.menuCarta3(to);
         break;
       default:
-        this.assistandState[message.from] = { step: 'question' };
+        this.assistandState[to] = { step: 'question' };
     }
     if (response) {
       await whatsappService.sendMessage(to, response);
