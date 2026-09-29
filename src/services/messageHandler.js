@@ -1,6 +1,6 @@
 import whatsappService from './whatsappService.js';
 import appendToSheet from './googleSheetsService.js';
-import geminiService from './geminiService.js';
+import geminiService, { AI_UNAVAILABLE } from './geminiService.js';
 import { createWompiPaymentLink, getWompiTransactionStatus } from './wompiService.js';
 import { enviarPedidoALoggro } from './loggroService.js';
 import { saveUserDataByNumber } from './googleSheetsService.js';
@@ -1343,7 +1343,7 @@ completeOrder(productos, data) {
 
     switch (state.step) {
       case 'question':
-        response = await geminiService(message);
+        response = (await geminiService(message, to)) ?? AI_UNAVAILABLE;
         break;
       default:
         response = "Lo siento 😔 no entendí tu respuesta\nPor Favor, elige una de las opciones del menú.";
@@ -1360,7 +1360,7 @@ completeOrder(productos, data) {
 
     switch (state.step) {
       case 'question':
-        response = await geminiService(message);
+        response = (await geminiService(message, to)) ?? AI_UNAVAILABLE;
         break;
       default:
         response = "Lo siento 😔 no entendí tu respuesta\nPor Favor, elige una de las opciones del menú.";

@@ -20,7 +20,7 @@ import { askAi } from './crmAdapter.js';
  */
 
 /** Texto cuando la IA no está disponible (apagada / sin conocimiento / CRM caído). */
-export const AI_UNAVAILABLE = 'Por ahora no puedo responder preguntas libres 🙈. Elige una opción del menú o escribe *Asesor* y una persona te atiende.';
+export const AI_UNAVAILABLE = 'Tengo inconvenientes en estos momentos. Elige una opción del menú o escribe *Asesor* o espera y una persona te atenderá.';
 
 /**
  * @param {string} message  Texto del cliente.
