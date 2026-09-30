@@ -116,7 +116,7 @@ export async function recordSent(to, data, metaResponse) {
 export async function askAi(to, text) {
   if (!crmEnabled) return null;
   try {
-    const { data } = await crm.post('/ai/reply', { to, text }, { timeout: 45000 });
+    const { data } = await crm.post('/ai/reply', { to, text, phoneNumberId: CRM_PHONE_NUMBER_ID }, { timeout: 45000 });
     return data?.text ?? null;
   } catch (error) {
     const code = error.response?.data?.error?.code ?? error.response?.data?.code;
@@ -137,7 +137,7 @@ export async function canBotReply(to) {
   const cached = activeCache.get(to);
   if (cached && Date.now() - cached.at < 10_000) return cached.active;
   try {
-    const { data } = await crm.get('/conversations/lookup', { params: { to } });
+    const { data } = await crm.get('/conversations/lookup', { params: { to, phoneNumberId: CRM_PHONE_NUMBER_ID } });
     activeCache.set(to, { active: data.botActive !== false, at: Date.now() });
     return data.botActive !== false;
   } catch (error) {
