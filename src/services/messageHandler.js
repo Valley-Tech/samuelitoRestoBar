@@ -1270,7 +1270,7 @@ completeOrder(productos, data) {
     const buttons = [
       { type: 'reply', reply: { id: 'option_4', title: "Si, Gracias 😊" } },
       { type: 'reply', reply: { id: 'option_3', title: 'Hacer otra pregunta' } },
-      { type: 'reply', reply: { id: 'op_3', title: 'Hablar con asesor 🤵' } }
+      // { type: 'reply', reply: { id: 'op_3', title: 'Hablar con asesor 🤵' } }
     ];
 
     switch (state.step) {
