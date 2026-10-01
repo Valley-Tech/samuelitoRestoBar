@@ -424,9 +424,6 @@ async menuCarta(to) {
                   "product_retailer_id": "68203ef70ae0923d28d06765"
                 },
                 {
-                  "product_retailer_id": "667f06fe23caaaaf0451a641"
-                },
-                {
                   "product_retailer_id": "5dbcb57ec557e50e67fec01f"
                 },
                 {
@@ -538,9 +535,6 @@ else {
               },
               {
                 "product_retailer_id": "68203ef70ae0923d28d06765"
-              },
-              {
-                "product_retailer_id": "667f06fe23caaaaf0451a641"
               },
               {
                 "product_retailer_id": "5dbcb57ec557e50e67fec01f"
@@ -736,50 +730,6 @@ else {
             ]
           },
           {
-            "title": "CÓCTELES",
-              "product_items": [
-                {
-                  "product_retailer_id": "5e226a93641dd30e29531e11"
-                },
-                {
-                  "product_retailer_id": "5dbcbb91c557e50e67fec108"
-                },
-                {
-                  "product_retailer_id": "5dbcbb4ec557e50e67fec0ff"
-                },
-                {
-                  "product_retailer_id": "5f836639e5d38924870320a5"
-                },
-                {
-                  "product_retailer_id": "639c9ea052617c1b981ee5f4"
-                },
-                {
-                  "product_retailer_id": "639c9e7352617c1b981ee5e1"
-                },
-                {
-                  "product_retailer_id": "639c9e7352617c1b981ee5e4"
-                },
-                {
-                  "product_retailer_id": "639c9e7352617c1b981ee5e2"
-                },
-                {
-                  "product_retailer_id": "653859e9dc0e3f05d9fd5ccd"
-                },
-                {
-                  "product_retailer_id": "639c9ef852617c1b981ee604"
-                },
-                {
-                  "product_retailer_id": "639c9ef852617c1b981ee605"
-                },
-                {
-                  "product_retailer_id": "64a1d25d9c7cb205f4f48a23"
-                },
-                {
-                  "product_retailer_id": "639c9ef852617c1b981ee606"
-                },
-            ]
-          },
-          {
             "title": "POSTRES",
               "product_items": [
                 {
@@ -799,9 +749,6 @@ else {
                 },
                 {
                   "product_retailer_id": "6133e235d145504ca38cbd7e"
-                },
-                {
-                  "product_retailer_id": "65550a945e11f905f75326f5"
                 },
             ]
           }
@@ -1178,7 +1125,6 @@ completeOrder(productos, data) {
       "5dbcb5a6c557e50e67fec022",
       "5de84c6e205aba0e1c9907d0",
       "68203ef70ae0923d28d06765",
-      "667f06fe23caaaaf0451a641",
       "5dbcb57ec557e50e67fec01f",
       "654ff6380779b105ec6ac20a",
       "654ff7ba33294a05ef9f32f7",
@@ -1217,26 +1163,12 @@ completeOrder(productos, data) {
       "5dc0a48751aceb0dd757c6fb",
       "5dc0a48751aceb0dd757c6fc",
       "5dc0a60f51aceb0dd757c70f",
-      "5e226a93641dd30e29531e11",
-      "5dbcbb91c557e50e67fec108",
-      "5dbcbb4ec557e50e67fec0ff",
-      "5f836639e5d38924870320a5",
-      "639c9ea052617c1b981ee5f4",
-      "639c9e7352617c1b981ee5e1",
-      "639c9e7352617c1b981ee5e4",
-      "639c9e7352617c1b981ee5e2",
-      "653859e9dc0e3f05d9fd5ccd",
-      "639c9ef852617c1b981ee604",
-      "639c9ef852617c1b981ee605",
-      "64a1d25d9c7cb205f4f48a23",
-      "639c9ef852617c1b981ee606",
       "5dc4ce4651aceb0dd757e786",
       "639c9b7d3c1b5a05f0d8fb97",
       "5f9b455cef1e265d296b0eab",
       "639c9ba452617c1b981ee446",
       "65500860c2087c73f3b778a3",
       "6133e235d145504ca38cbd7e",
-      "65550a945e11f905f75326f5"
     ]
   };
 
