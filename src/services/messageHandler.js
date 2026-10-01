@@ -1113,7 +1113,7 @@ async handleWompiEvent(transaction, telefono) {
   }
 
   async sendMedia(to) {
-    const mediaUrl = 'https://micarta.s3.us-east-1.amazonaws.com/menu%CC%81+nuevo+Samuelito+Agosto+2025.pdf';
+    const mediaUrl = 'https://micarta.s3.us-east-1.amazonaws.com/crm/7c9e0325-6a8e-4198-a2f8-0611896a6e6a/knowledge/e43b6d3a-ba68-4de7-82bf-70c1bec50f39.pdf';
     const caption = '¡Aquí tienes la carta!';
     const type = 'document';
 
