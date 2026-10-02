@@ -136,6 +136,8 @@ class MessageHandler {
       } else if (message?.type === 'text' && message?.text.body.toLowerCase().trim() === 'carta') {
           await whatsappService.sendMessage(message.from, "Espera que cargue la carta... 📄");
           await this.sendMedia(message.from);
+      } else if (incomingMessage.includes('menu') || incomingMessage.includes('menú')) {
+            await this.catalogo(message.from);
       } else if (message?.type === 'text' && message?.text.body.toLowerCase().trim() === 'ubicacion' || message?.type === 'text' && message?.text.body.toLowerCase().trim() === 'ubicación') {
           await this.sendLocation(message.from);
       } else if (message?.type === 'text' && message?.text.body.toLowerCase().trim() === 'asesor') {
@@ -707,13 +709,16 @@ else {
           catalog_id: "899362489478649",
           sections: [
           {
-            "title": "JUGOS NATURALES",
+            "title": "BEBIDAS y JUGOS",
               "product_items": [
                 {
                   "product_retailer_id": "5dc099e151aceb0dd757c620"
                 },
                 {
                   "product_retailer_id": "5dbe24b354eef30e209928e8"
+                },
+                {
+                  "product_retailer_id": "6a330907fcb370a10498d9ac"
                 },
                 {
                   "product_retailer_id": "5dc0a48751aceb0dd757c6fa"
@@ -730,7 +735,7 @@ else {
             ]
           },
           {
-            "title": "POSTRES",
+            "title": "POSTRES y MALTEADAS",
               "product_items": [
                 {
                   "product_retailer_id": "5dc4ce4651aceb0dd757e786"
@@ -1054,7 +1059,7 @@ async handleWompiEvent(transaction, telefono) {
   }
 
   async helpMenu(to) {
-    const response = "Bienvenido al menú de ayuda de *Samuelito Restobar*\n\nPara solicitar la carta escribe *Carta*\nPara hablar con un asesor escribe *Asesor*\nPara solicitar la ubicación escribe *Ubicacion*\n\nEspero te sirva! 😊"
+    const response = "Bienvenido al menú de ayuda de *Samuelito Restobar*\n\nPara hacer una pregunta escríbela finalizando con el signo *?*\n\nSi tienes alguna consulta o requerimiento hazla con palabras interrogantes (Qué, Cómo, Por qué, etc.)\n\nPara solicitar la carta escribe *Carta*\nPara hablar con un asesor escribe *Asesor*\nPara solicitar la ubicación escribe *Ubicacion*\n\nEspero te sirva! 😊"
   
     await whatsappService.sendMessage(to, response);
   }
@@ -1169,6 +1174,7 @@ completeOrder(productos, data) {
       "639c9ba452617c1b981ee446",
       "65500860c2087c73f3b778a3",
       "6133e235d145504ca38cbd7e",
+      "6a330907fcb370a10498d9ac"
     ]
   };
 
