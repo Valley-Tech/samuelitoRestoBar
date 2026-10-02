@@ -128,22 +128,22 @@ class MessageHandler {
         await this.menuOpcionalHiring(message.from);
         }
       } else {
-        const incomingMessage = message.text.body.toLowerCase().trim();
-      if (message?.type === 'text' && this.isQuestion(message?.text.body.toLowerCase().trim())) {
+        const incomingMessage = message?.text.body.toLowerCase().trim();
+      if (message?.type === 'text' && this.isQuestion(incomingMessage)) {
           this.assistandState[message.from] = { step: 'question' };
           await this.handleAssistand(message.from, incomingMessage);
-      } else if (message?.type === 'text' && message?.text.body.toLowerCase().trim() === 'ayuda') {
+      } else if (message?.type === 'text' && incomingMessage === 'ayuda') {
           await this.helpMenu(message.from);
-      } else if (message?.type === 'text' && message?.text.body.toLowerCase().trim() === 'carta') {
+      } else if (message?.type === 'text' && incomingMessage === 'carta') {
           await whatsappService.sendMessage(message.from, "Espera que cargue la carta... 📄");
           await this.sendMedia(message.from);
       } else if (incomingMessage.includes('menu') || incomingMessage.includes('menú')) {
             await this.catalogo(message.from);
-      } else if (message?.type === 'text' && message?.text.body.toLowerCase().trim() === 'ubicacion' || message?.type === 'text' && message?.text.body.toLowerCase().trim() === 'ubicación') {
+      } else if (message?.type === 'text' && (incomingMessage === 'ubicacion' || incomingMessage === 'ubicación')) {
           await this.sendLocation(message.from);
-      } else if (message?.type === 'text' && message?.text.body.toLowerCase().trim() === 'asesor') {
+      } else if (message?.type === 'text' && incomingMessage === 'asesor') {
           await this.sendContact(message.from);
-      } else if (message?.type === 'text' && this.isReservation(message?.text.body.toLowerCase().trim())) {
+      } else if (message?.type === 'text' && this.isReservation(incomingMessage)) {
           await this.handleMenuOption(message.from, 'option_2');
       }
       else if (message?.type === 'interactive' && message?.interactive.type === 'nfm_reply' && screen==="RESUMEN") {
