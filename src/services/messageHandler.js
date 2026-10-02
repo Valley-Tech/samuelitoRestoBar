@@ -127,8 +127,9 @@ class MessageHandler {
         await whatsappService.sendMessage(message.from, msg);
         await this.menuOpcionalHiring(message.from);
         }
-      } else if (message?.type === 'text' && this.isQuestion(message?.text.body.toLowerCase().trim())) {
-          const incomingMessage = message.text.body.toLowerCase().trim();
+      } else {
+        const incomingMessage = message.text.body.toLowerCase().trim();
+      if (message?.type === 'text' && this.isQuestion(message?.text.body.toLowerCase().trim())) {
           this.assistandState[message.from] = { step: 'question' };
           await this.handleAssistand(message.from, incomingMessage);
       } else if (message?.type === 'text' && message?.text.body.toLowerCase().trim() === 'ayuda') {
@@ -155,6 +156,7 @@ class MessageHandler {
         await whatsappService.sendMessage(message.from, msg, message.id);
         return;
       }
+    }
   } catch (error) {
     logAxiosError('Error: ', error);
     throw error;
