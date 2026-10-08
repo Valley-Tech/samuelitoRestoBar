@@ -87,6 +87,7 @@ class MessageHandler {
               await whatsappService.markAsRead(message.id);
             }        
       } else if (message?.type === 'image' && accion["pantalla"] === 'SUMMARY') {
+        delete accion["pantalla"];
         const datosUsuario = userOrderDataMap[message.from] || {};
         const imageBuffer = await downloadImageFromMeta(message.image.url);
         
