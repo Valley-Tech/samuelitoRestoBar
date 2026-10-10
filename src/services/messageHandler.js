@@ -113,6 +113,7 @@ class MessageHandler {
 
         const numerosOficiales = [
           "573137517489", // Número principal
+          "573006342114"  // Otro número oficial
         ];
 
         for (const numero of numerosOficiales) {
@@ -892,6 +893,7 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
 
         const numerosOficiales = [
           "573137517489", // Número principal
+          "573006342114"  // Otro número oficial
         ];
 
         for (const numero of numerosOficiales) {
@@ -962,7 +964,8 @@ Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
   const publicUrl = "https://micarta.s3.us-east-1.amazonaws.com/confirmacion_reserva.jpeg";
   const numerosOficiales = [
     to,
-    "573137517489"
+    "573137517489",
+    "573006342114"
   ];
   
   for (const numero of numerosOficiales) {
@@ -1033,6 +1036,7 @@ async handleWompiEvent(transaction, telefono) {
 
       const numerosOficiales = [
         "573137517489", // Número principal
+        "573006342114"  // Otro número oficial
       ];
 
       for (const numero of numerosOficiales) {
