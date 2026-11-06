@@ -130,7 +130,10 @@ class MessageHandler {
         await this.menuOpcionalHiring(message.from);
         }
       } else {
-        const incomingMessage = message?.text.body.toLowerCase().trim();
+        // v3.4: las respuestas de Flows (reserva), botones e imágenes no traen "text":
+        // antes esto lanzaba "Cannot read properties of undefined (reading 'body')" y
+        // la confirmación de la reserva y la ubicación nunca salían fuera del horario.
+        const incomingMessage = message?.text?.body?.toLowerCase().trim() ?? '';
       if (message?.type === 'text' && this.isQuestion(incomingMessage)) {
           this.assistandState[message.from] = { step: 'question' };
           await this.handleAssistand(message.from, incomingMessage);
