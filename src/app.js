@@ -2,9 +2,12 @@ import express from 'express';
 import config from './config/env.js';
 import webhookRoutes from './routes/webhookRoutes.js';
 import { instalarCapturaGlobal } from './services/reportarFallas.js';
+import { iniciarRevisionFotos } from './services/fotosCatalogo.js';
 
 // v3.4: los errores que nadie atrapó también llegan al CRM (Analítica → Fallas).
 instalarCapturaGlobal();
+// v3.5: revisa en línea las fotos del catálogo de Meta (al arrancar y cada 6 h).
+iniciarRevisionFotos();
 
 const app = express();
 app.use(express.json({

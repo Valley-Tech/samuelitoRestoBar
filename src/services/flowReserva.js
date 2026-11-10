@@ -11,7 +11,7 @@ const SCREEN_RESPONSES = {
   },
 };
 
-export const nextScreen = async (decryptedBody) => {
+export const nextScreen = async (decryptedBody, numero) => {
   const { screen, data, version, action, flow_token } = decryptedBody;
   // handle health check request
   if (action === "ping") {
@@ -66,7 +66,7 @@ De donde nos visitas:   ${data.donde}`;
           },
         };
       case "RESUMEN":
-        messageHandler.completeAppointment({...data});
+        messageHandler.completeAppointment({...data}, numero); // v3.5: número del flow_token
         return {
           ...SCREEN_RESPONSES.SUCCESS,
           data: {

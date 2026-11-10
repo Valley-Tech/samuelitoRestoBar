@@ -66,4 +66,29 @@ export default {
   AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
   AWS_REGION: process.env.AWS_REGION,
   AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
+
+  // ---- v3.5: búsqueda de platos, conversación y seguimiento del pedido ----
+  // Los valores por defecto son los que ya estaban en el código: no hace falta agregar variables en Railway.
+  CATALOG_ID: process.env.CATALOG_ID || '899362489478649',
+  FLOW_ID_PEDIDO: process.env.FLOW_ID_PEDIDO || '1667286921657383',
+  FLOW_ID_RESERVA: process.env.FLOW_ID_RESERVA || '1111929481300178',
+  FLOW_ID_ENCUESTA: process.env.FLOW_ID_ENCUESTA || '1847588183274663',
+  // Turno del chatbot (hora Colombia). La bienvenida sale una vez por cliente en cada turno.
+  HORA_APERTURA: process.env.HORA_APERTURA || '12:00',
+  HORA_CIERRE: process.env.HORA_CIERRE || '22:00',
+  DOMICILIO_VALOR: Number(process.env.DOMICILIO_VALOR ?? 3000),
+  NOTIFY_NUMBERS: (process.env.NOTIFY_NUMBERS || '573137517489,573006342114').split(',').map((n) => n.replace(/\D/g, '')).filter(Boolean),
+  RECORDATORIO_PEDIDO_MIN: Number(process.env.RECORDATORIO_PEDIDO_MIN) || 5, // cada cuántos minutos se recuerda
+  RECORDATORIO_PEDIDO_MAX: Number(process.env.RECORDATORIO_PEDIDO_MAX ?? 2),  // cuántas veces como máximo (0 = nunca)
+  ADICIONAL_MINUTOS: Number(process.env.ADICIONAL_MINUTOS) || 60,           // ventana para sumar un adicional a un pedido enviado
+  // Carrusel de productos (2 a 10 tarjetas). TARJETAS_CARRUSEL=false → se usa la lista de productos con carrito.
+  TARJETAS_CARRUSEL: !/^(0|false|no)$/i.test(process.env.TARJETAS_CARRUSEL || 'true'),
+  // Carrusel y tarjeta solo con productos que tienen foto válida en Meta (docs/catalogo-meta-samuelito.csv).
+  SOLO_CON_FOTO: !/^(0|false|no)$/i.test(process.env.SOLO_CON_FOTO || 'true'),
+  VERIFICAR_FOTOS: !/^(0|false|no)$/i.test(process.env.VERIFICAR_FOTOS || 'true'), // revisa en línea que la foto exista
+  VARIANTES_META: false, // Samuelito no usa grupos de variantes en Meta: una tarjeta por producto
+  // Asados al barril: solo los domingos (false = todos los días).
+  BARRIL_SOLO_DOMINGO: !/^(0|false|no)$/i.test(process.env.BARRIL_SOLO_DOMINGO || 'true'),
+  // Números a los que el bot NO responde (p. ej. el personal del restaurante que escribe a la línea).
+  NO_RESPONDER_A: (process.env.NO_RESPONDER_A || '').split(',').map((n) => n.replace(/\D/g, '')).filter(Boolean),
 };

@@ -87,6 +87,8 @@ Medio de pago:    ${data.pago}`;
       case "SUMMARY":
         messageHandler.completeHiring(pedidoStr, data, numero);
         messageHandler.completeOrder(productos, data);
+        // v3.5: el pedido quedó enviado (para recordatorios y adicionales dentro de ADICIONAL_MINUTOS).
+        messageHandler.pedidoEnviado(numero, data);
         result = {
           ...SCREEN_RESPONSES.SUCCESS,
           data: {

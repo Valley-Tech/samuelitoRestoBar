@@ -7,6 +7,7 @@ import messageHandler from '../services/messageHandler.js';
 import crypto from "crypto";
 import { CRM_MODE, forwardWebhook, toMetaMessage } from '../services/crmAdapter.js';
 import { reportarFalla, entradaDe } from '../services/reportarFallas.js';
+import { sesion, numeroDeToken } from '../services/sesiones.js';
 
 const privateKey = config.PRIVATE_KEY;
 function isRequestSignatureValid(req) {
@@ -29,13 +30,16 @@ function isRequestSignatureValid(req) {
   return true;
 }
 
-let ventana;
-let datosReserva;
-let datosPedido = {};
-let productos;
-let precioTotal = 0;
-let pedidoStr;
-const idNumber = {}
+// v3.5: el pedido, la reserva y la pantalla del Flow ya no son variables globales
+// (ventana, datosReserva, datosPedido, productos, pedidoStr, idNumber): cada cliente tiene su
+// sesión (services/sesiones.js), así dos pedidos a la vez no se mezclan. Los nombres de los
+// productos pasaron a src/data/catalogo.js.
+// Mensajes ya atendidos (wamid → momento). Evita responder dos veces al mismo mensaje.
+const SEEN_TTL_MS = 10 * 60 * 1000;
+const seenMessages = new Map();
+let gatewayWarned = false;
+let mirrorWarned = false;
+
 class WebhookController {  
   /**
    * Webhook de Meta (modo espejo). Se reenvía al CRM ANTES del filtro por
@@ -43,7 +47,17 @@ class WebhookController {
    * enseguida: Meta reintenta (y duplica) si el bot tarda en contestar.
    */
   async handleIncoming(req, res) {
-    if (CRM_MODE !== 'gateway') forwardWebhook(req.body); // sin await: no frena la respuesta a Meta
+    // Modo gateway: el CRM es el único que entrega mensajes (por /crm/events).
+    // Si Meta sigue llamando aquí (la app propia del cliente aún suscrita a la
+    // WABA), se acepta con 200 y se ignora: procesarlo duplicaría cada respuesta.
+    if (CRM_MODE === 'gateway') {
+      if (!gatewayWarned && req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.length) {
+        gatewayWarned = true;
+        console.warn('[webhook] Meta sigue enviando webhooks directos al bot en modo gateway: desuscribe la app propia de la WABA. Se ignoran para no duplicar respuestas.');
+      }
+      return res.sendStatus(200);
+    }
+    forwardWebhook(req.body); // sin await: no frena la respuesta a Meta
 
     const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
     const recipientPhone = req.body.entry?.[0]?.changes[0]?.value?.metadata?.phone_number_id;
@@ -64,6 +78,15 @@ class WebhookController {
    */
   async handleCrmEvent(event) {
     if (event.event !== 'message.received' || !event.message) return;
+    // Modo espejo: los mensajes ya llegan por el webhook de Meta; si además el
+    // CRM los reenvía (chatbot registrado en el CRM), se ignoran aquí.
+    if (CRM_MODE !== 'gateway') {
+      if (!mirrorWarned) {
+        mirrorWarned = true;
+        console.warn('[crm] evento del CRM ignorado en modo espejo (CRM_MODE=mirror): en este modo responde solo al webhook de Meta. Para que el CRM entregue los mensajes pon CRM_MODE=gateway.');
+      }
+      return;
+    }
     // Doble seguro: el CRM ya filtra por "Atiende", pero si BUSINESS_PHONE está definido solo se atiende ese número.
     if (process.env.BUSINESS_PHONE && event.integration?.phoneNumberId && event.integration.phoneNumberId !== process.env.BUSINESS_PHONE) return;
     const { message, senderInfo } = toMetaMessage(event);
@@ -72,100 +95,33 @@ class WebhookController {
 
   /** La lógica original de handleIncoming, intacta, usada por los dos caminos. */
   async dispatch(message, senderInfo) {
+    // Idempotencia: Meta reintenta si tardamos en responder y el CRM reintenta
+    // si fallamos; un mismo wamid solo se atiende una vez (memoria de 10 min).
+    if (message?.id) {
+      if (seenMessages.has(message.id)) {
+        console.warn('[webhook] mensaje repetido ignorado:', message.id);
+        return;
+      }
+      seenMessages.set(message.id, Date.now());
+      if (seenMessages.size > 5000) {
+        const limit = Date.now() - SEEN_TTL_MS;
+        for (const [id, at] of seenMessages) if (at < limit) seenMessages.delete(id);
+      }
+    }
+    // Números del personal u otros a los que el bot no debe responder (NO_RESPONDER_A).
+    if (config.NO_RESPONDER_A.includes(String(message?.from ?? '').replace(/\D/g, ''))) return;
     try {
-      idNumber["numero"] = message.from;
+      const s = sesion(message.from);
       if (message?.type === 'interactive' && message?.interactive.type === 'nfm_reply') {
-        await messageHandler.handleIncomingMessage(message, senderInfo, ventana, datosReserva, datosPedido, pedidoStr);
+        await messageHandler.handleIncomingMessage(message, senderInfo, s.ventana, s.datosReserva, s.datosPedido, s.pedidoStr);
       }
       else if (message?.type === 'order') {
-      const product_names = {
-        "5de86e87205aba0e1c990910" : "Chips de Plátano con Suero",
-        "654ffcee0779b105ec6ac3bd" : "Patacones de la Casa",
-        "5dbcae51c557e50e67febfcc" : "Don Chicharrón",
-        "5dbcad3fc557e50e67febfac" : "Canastas del Mar",
-        "5dbcae00c557e50e67febfc0" : "Cóctel de Camarones",
-        "5dbcb083c557e50e67febfdb" : "Chorizo Artesanal Santarrosano",
-        "6888523e6fb8ea242c06a0bb" : "Chorizo Artesanal Mexicano",
-        "67981c57bd2f74e33cfce707" : "Baby en Salsa de Champiñones",
-        "66ef02fa4ff68adb785f09f8" : "Lomo imperial con Fettuccine a los 4 Quesos",
-        "619e8bd01880235f6d5b27e5" : "Lomito Mar y Tierra",
-        "5dbcb308c557e50e67febff9" : "Baby Beef",
-        "5dbcb38cc557e50e67febffc" : "Churrasco de Res",
-        "5dc733ad7c14810dfd3fec3f" : "Churrasco de Cerdo",
-        "68203e8d7f735e5e48b7ec3b" : "Churrasco de Cerdo en Salsa con Tocineta",
-        "5e5ae290338d200e065c3577" : "Steak Pimienta",
-        "5dcf187deea63f0df843be1e" : "Cazuela de Mariscos",
-        "5dbcb3d9c557e50e67fec005" : "Costillas BBQ Premium",
-        "6311736932c31c05fbf10f89" : "Churrasco de Cerdo Gratinado",
-        "5dbcb5a6c557e50e67fec022" : "Pechuga al Grill",
-        "5de84c6e205aba0e1c9907d0" : "Pechuga Gratinada",
-        "68203ef70ae0923d28d06765" : "Pechuga en Salsa con Tocineta",
-        "5dbcb57ec557e50e67fec01f" : "Parrillada Mixta",
-        "654ff6380779b105ec6ac20a" : "New York Steak",
-        "654ff7ba33294a05ef9f32f7" : "Rib Eye Steak",
-        "61a10ddf1fd14430485f8cb9" : "Picada de la Casa (Para 2)",
-        "61a2657c1fd14430485f9f0e" : "Picada de la Casa (Para 4)",
-        "6550028ec2087c73f3b7775e" : "Mini Burger x3",
-        "61a118171fd14430485f8d78" : "Chicken Fingers",
-        "619d6d801880235f6d5b1c36" : "Salmón Pepper Pink",
-        "632df4983bcfe31bedde0e45" : "Pastas al Ajillo",
-        "5dd9dc26b928d20df3b63e49" : "Pastas Alfred",
-        "5e34ebb51ffca60e28d763ef" : "Camarones al Ajillo",
-        "61a110b91880235f6d5b45a3" : "Arroz Samuelito",
-        "5f9b5233ef1e265d296b0f8d" : "Arroz de Camarones",
-        "6796793106b0703ef18a9f72" : "Club Sándwich",
-        "61a119621880235f6d5b4644" : "Ensalada con Atún",
-        "61a119421fd14430485f8d96" : "Ensalada con Pollo",
-        "618b0decad2f690565ff0342" : "Sushi Samuelito Rolls",
-        "5f9b5636ef1e265d296b0fd3" : "Clasic Burger",
-        "5dbcb612c557e50e67fec02b" : "Hamburguesa Felipa",
-        "5dbcb645c557e50e67fec02e" : "Samuelito Burger",
-        "67981bf757fc699d06fbe11c" : "Perro Hawaiano",
-        "5ef55e5619721c49eb8bb24a" : "Perro Clásico",
-        "5dbcb6a5c557e50e67fec03e" : "Perro Suizo",
-        "5dbcb67cc557e50e67fec031" : "Salchipupera",
-        "5dc7332e7c14810dfd3fec34" : "Salchipapa Tradicional",
-        "5f9b3922ef1e265d296b0d95" : "Desgranado de la Casa",
-        "5dc7337b7c14810dfd3fec38" : "Desgranado Pupero",
-        "6133f09d5af774183ce25e0f" : "Caja Barrilera",
-        "6133e891d145504ca38cbeeb" : "Chicharrón al Barril",
-        "6133f070d145504ca38cbf3a" : "Costillas BBQ al barril",
-        "5dc099e151aceb0dd757c620" : "Frutos Amarillos",
-        "5dbe24b354eef30e209928e8" : "Frutos Rojos",
-        "6a330907fcb370a10498d9ac" : "Maracumango",
-        "5dc0a48751aceb0dd757c6fa" : "Limonada cerezada",
-        "5dc0a48751aceb0dd757c6fb" : "Hierba Buena",
-        "5dc0a48751aceb0dd757c6fc" : "Limonada de coco",
-        "5dc0a60f51aceb0dd757c70f" : "Limonada Natural",
-        "5dc4ce4651aceb0dd757e786" : "Brownie con Helado",
-        "639c9b7d3c1b5a05f0d8fb97" : "Malteada de Oreo",
-        "5f9b455cef1e265d296b0eab" : "Panacota de Frutos Rojos",
-        "639c9ba452617c1b981ee446" : "Malteada de Nutela",
-        "65500860c2087c73f3b778a3" : "Malteada de Milo",
-        "6133e235d145504ca38cbd7e" : "Malteada de Café",
-      };
-      const order = message.order;
-      productos = order.product_items;
-
-      // Calcula el total usando reduce
-      precioTotal = productos.reduce((total, item) => total + (item.item_price * item.quantity),0);
-
-      // 2. Renombra los productos usando el diccionario
-      const productosNombres = productos.map(item => {
-        const nombre = product_names[item.product_retailer_id] || item.product_retailer_id;
-        return `${nombre} x${item.quantity}`;
-      });
-
-      // 3. Construye el string del pedido para mostrarlo bonito
-      pedidoStr = productosNombres.join('\n');
-
-      datosPedido['monto'] = precioTotal;
-      // 4. Pasa el string de nombres a handleHiringFlow
-      await messageHandler.handleHiringFlow(message.from, pedidoStr, datosPedido);
-    }
-    else {
-      await messageHandler.handleIncomingMessage(message, senderInfo);
-    }
+        // v3.5: el carrito se confirma antes del Flow (y se puede sumar, reemplazar o ser un adicional).
+        await messageHandler.recibirCarrito(message.from, message.order);
+      }
+      else {
+        await messageHandler.handleIncomingMessage(message, senderInfo);
+      }
     } catch (error) {
       console.error('Error procesando el mensaje:', error);
       // v3.4: la falla aparece en el CRM, en el chat de este cliente, con su log.
@@ -189,7 +145,7 @@ class WebhookController {
       decryptedRequest = decryptRequest(req.body, privateKey, config.PASSPHRASE);
     } catch (err) {
       console.error(err);
-      reportarFalla(err, { to: idNumber["numero"], step: 'Flow con endpoint: descifrar la solicitud (PRIVATE_KEY / PASSPHRASE)', level: err instanceof FlowEndpointException && err.statusCode === 421 ? 'warning' : 'error' });
+      reportarFalla(err, { step: 'Flow con endpoint: descifrar la solicitud (PRIVATE_KEY / PASSPHRASE)', level: err?.statusCode === 421 ? 'warning' : 'error' });
       if (err instanceof FlowEndpointException) {
         return res.status(err.statusCode).send();
       }
@@ -199,24 +155,35 @@ class WebhookController {
     
     const { aesKeyBuffer, initialVectorBuffer, decryptedBody } = decryptedRequest;
     let screenResponse;
-    const numero = idNumber["numero"]
-    if (decryptedBody.screen === 'DETAILS' || decryptedBody.screen === "SUMMARY") {
-      screenResponse = await getNextScreen(decryptedBody, productos, datosPedido.monto, pedidoStr, numero);
+    // De quién es este Flow: viene en el flow_token ("pedido:<número>:…").
+    const numero = numeroDeToken(decryptedBody.flow_token);
+    const s = decryptedBody.action === 'ping' ? null : sesion(numero);
+    try {
+      if (decryptedBody.action === "ping") {
+        // handle health check request
+        screenResponse = await getNextScreen(decryptedBody);
+      } else if (decryptedBody.screen === 'DETAILS' || decryptedBody.screen === "SUMMARY") {
+        screenResponse = await getNextScreen(decryptedBody, s?.productos, s?.datosPedido?.monto, s?.pedidoStr, numero);
+      } else if (decryptedBody.screen === 'RESERVA' || decryptedBody.screen === "RESUMEN") {
+        screenResponse = await nextScreen(decryptedBody, numero);
+      } else if (decryptedBody.screen === 'RECOMMEND' || decryptedBody.screen === "RATE") {
+        screenResponse = await nextEncuesta(decryptedBody, numero);
+      } else {
+        // Errores reportados por el cliente del Flow u otras pantallas: se acusa recibo.
+        screenResponse = await getNextScreen(decryptedBody);
+      }
+    } catch (error) {
+      console.error('[flow] error armando la pantalla:', error.message);
+      reportarFalla(error, { to: numero, step: `Flow con endpoint: pantalla ${decryptedBody.screen ?? decryptedBody.action}` });
+      return res.status(500).send();
     }
-    if (decryptedBody.screen === 'RESERVA' || decryptedBody.screen === "RESUMEN") {
-      screenResponse = await nextScreen(decryptedBody);
-    } else if (decryptedBody.screen === 'RECOMMEND' || decryptedBody.screen === "RATE") {
-      screenResponse = await nextEncuesta(decryptedBody);
-    }
-    // handle health check request
-    if (decryptedBody.action === "ping") {
-      screenResponse = await getNextScreen(decryptedBody);
-    }
-    ventana = decryptedBody.screen
-    if (ventana === "RESUMEN") {
-      datosReserva = decryptedBody.data
-    } else if (ventana === "SUMMARY") {
-      datosPedido["datos"] = decryptedBody.data
+    if (s) {
+      s.ventana = decryptedBody.screen;
+      if (s.ventana === "RESUMEN") {
+        s.datosReserva = decryptedBody.data;
+      } else if (s.ventana === "SUMMARY") {
+        s.datosPedido.datos = decryptedBody.data;
+      }
     }
 
     res.send(encryptResponse(screenResponse, aesKeyBuffer, initialVectorBuffer));
@@ -225,15 +192,15 @@ class WebhookController {
 
   async handleEvent(req, res) {
     try {
-      const numero = idNumber["numero"]
       const event = req.body;
       if (event && event.data && event.data.transaction) {
-        await messageHandler.handleWompiEvent(event.data.transaction,numero);
+        // El número del cliente se busca por el link de pago (no por "el último que escribió").
+        await messageHandler.handleWompiEvent(event.data.transaction);
       }
       res.status(200).send('Evento recibido');
     } catch (error) {
       console.error("Error procesando evento de Wompi:", error);
-      reportarFalla(error, { to: idNumber["numero"], step: 'evento de pago de Wompi' });
+      reportarFalla(error, { step: 'evento de pago de Wompi' });
       res.status(500).send('Error procesando evento');
     }
   }

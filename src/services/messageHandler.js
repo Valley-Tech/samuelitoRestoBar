@@ -7,28 +7,60 @@ import { saveUserDataByNumber } from './googleSheetsService.js';
 import { logAxiosError } from './printDetailError.js';
 import { downloadImageFromMeta } from './httpRequest/sendToWhatsApp.js';
 import { uploadToPublicStorage } from './awsS3Service.js';
+import { reportarFalla } from './reportarFallas.js';
+import { sesion, tokenFlow, nuevoPedido, obtenerSesion } from './sesiones.js';
+import { separarSaludo, esCortesia, esCancelar, esPreguntaGeneral, turnoActual, dentroDeHorario } from './conversacion.js';
+import { buscarPlatos, enviarTarjetas, hablaDePlatos, textoSinFoto, textoSoloDomingo } from './busquedaPlatos.js';
+import { nombrePorId } from '../data/catalogo.js';
+import config from '../config/env.js';
+import negocio from '../config/negocio.js';
+
+/**
+ * v3.5 (igual que BlackStationBot): búsqueda de platos con IA y carrusel, conversación
+ * coherente (bienvenida una vez por turno, "gracias" ya no reinicia el chat) y
+ * seguimiento del pedido (confirmar / agregar / cambiar antes del Flow, recordatorios
+ * y adicionales). El estado de cada cliente vive en sesiones.js (antes eran variables
+ * globales y dos clientes a la vez se mezclaban).
+ */
 
 function isWithinBusinessHours() {
-  // Hora actual en Colombia (GMT-5)
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const colombiaTime = new Date(utc - (5 * 60 * 60000));
-  const hour = colombiaTime.getHours();
-  const minute = colombiaTime.getMinutes();
-
-  // Horario: 12:00 (12 p.m.) a 22:00 (10 p.m.)
-  const opening = 12 * 60; // 12:00 p.m. en minutos 
-  const closing = 22 * 60; // 10:00 p.m. en minutos
-  const current = hour * 60 + minute;
-
-  return current >= opening && current < closing;
+  // Hora de Colombia. Horario: HORA_APERTURA a HORA_CIERRE (por defecto 12:00 p. m. a 10:00 p. m.).
+  return dentroDeHorario();
 }
 
-const transactionToPhoneMap = {}; // Memoria para mapear transactionId a número de teléfono
-const idNumber = {}
-const accion = {}
-const paymentRowMap = {};
-const userOrderDataMap = {};
+const cop = (n) => `$${Number(n || 0).toLocaleString('es-CO')}`;
+
+// Botones del paso "confirmar pedido" (máx. 20 caracteres por botón).
+const BOTONES_CONFIRMAR = [
+  { type: 'reply', reply: { id: 'ped_ok', title: 'Confirmar pedido ✅' } },
+  { type: 'reply', reply: { id: 'ped_mas', title: 'Agregar más ➕' } },
+  { type: 'reply', reply: { id: 'ped_cambiar', title: 'Cambiar pedido ✏️' } },
+];
+
+// Recordatorios del pedido pendiente (un temporizador por cliente).
+const temporizadores = new Map();
+
+/** Texto sin tildes y en minúsculas, para comparar palabras. */
+const normalizar = (t) => String(t ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+// El Flow de pedido trae la dirección solo si es a domicilio (si viene vacía, recoge en el restaurante).
+const RECOGIDA = 'Recogida en restaurante';
+const esDomicilio = (datos) => Boolean(String(datos?.address ?? '').trim()) && datos.address !== RECOGIDA;
+
+// Imágenes del encabezado de las plantillas de aviso.
+const IMAGEN_PEDIDO = 'https://micarta.s3.us-east-1.amazonaws.com/Copia+de+Reserva+tu+mesa.jpg';
+const IMAGEN_RESERVA = 'https://micarta.s3.us-east-1.amazonaws.com/confirmacion_reserva.jpeg';
+
+const transactionToPhoneMap = {}; // id del link de pago Wompi → número del cliente
+const paymentRowMap = {};         // número → fecha y hora de la fila del pedido en Sheets
+const userOrderDataMap = {};      // número → datos del pedido (para avisos y comprobante)
+
+// Cartas por palabra clave ("tienen hamburguesas", "quiero ver los jugos"…).
+const PALABRAS_CARTA = [
+  [/\b(bebidas?|jugos?|limonadas?|cocteles?|malteadas?|postres?|brownie|panacota)\b/, 'bebidas_postres'],
+  [/\b(comidas? rapidas?|hamburguesas?|burgers?|perros?|hot ?dogs?|salchipapas?|salchipupera|desgranados?|pastas?|mariscos?|camarones|salmon|arroz|arroces|sandwich(es)?|sanduches?|ensaladas?|sushi)\b/, 'rapidas_mariscos'],
+  [/\b(para picar|picadas?|platos? fuertes?|churrascos?|steaks?|baby beef|parrilladas?|costillas?|pechugas?|lomo|lomito|rib eye|new york|chicharron(es)?|patacon(es)?|chorizos?|menu infantil|chicken fingers|asados?|barril)\b/, 'picar_fuertes'],
+];
 
 class MessageHandler {
 
@@ -39,152 +71,99 @@ class MessageHandler {
 
   async handleIncomingMessage(message, senderInfo, screen, datosReserva, datosPedido, pedidoStr) {
     try {
+      const from = message.from;
+      this.tocarSeguimiento(from);
+      // Botones del pedido (confirmar, agregar, adicional…) y respuestas de Flows: a cualquier hora,
+      // para no dejar a medias un pedido que empezó antes del cierre.
+      const boton = message?.interactive?.button_reply?.id ?? message?.interactive?.list_reply?.id;
+      if (!isWithinBusinessHours() && message?.type === 'interactive') {
+        if (message.interactive.type === 'nfm_reply') {
+          await this.respFlow(from, screen, datosReserva, datosPedido, pedidoStr);
+          await whatsappService.markAsRead(message.id);
+          return;
+        }
+        if (/^(ped_|cart_|ad_)/.test(boton ?? '')) return this.handleMenuOption(from, boton);
+      }
       if (isWithinBusinessHours()) {
         if (message?.type === 'text') {
-        const incomingMessage = message.text.body.toLowerCase().trim();
-          if (this.isGreeting(incomingMessage)) {
-            await this.sendWelcomeMessage(message.from, message.id, senderInfo);
-            await this.sendWelcomeMenu(message.from);
-          } else if (incomingMessage === 'ayuda') {
-            await this.helpMenu(message.from);
-          } else if (incomingMessage.includes('carta')) {
-            await whatsappService.sendMessage(message.from, "Espera que cargue la carta... 📄");
-            await this.sendMedia(message.from);
-          } else if (incomingMessage.includes('menu') || incomingMessage.includes('menú')) {
-            await this.catalogo(message.from);
-          } else if (incomingMessage === 'ubicacion' || incomingMessage === 'ubicación') {
-            await this.sendLocation(message.from);
-          } else if (incomingMessage === 'asesor') {
-            await this.sendContact(message.from); 
-          } else if (this.isReservation(incomingMessage)) {
-            await this.handleMenuOption(message.from, 'option_2');
-          } else if (this.isOrder(incomingMessage)) {
-            await this.handleMenuOption(message.from, 'option_1');
-          } else if (this.isQuestion(incomingMessage)) {
-            this.assistandState[message.from] = { step: 'question' };
-            await this.handleAssistandFlow(message.from, incomingMessage);
-          } 
-          else if (this.appointmentState[message.from]) {
-            await this.handleAppointmentFlow(message.from, incomingMessage);
-          } 
-          else if (this.assistandState[message.from]) {
-            await this.handleAssistandFlow(message.from, incomingMessage);
-          } 
-          else {
-            await this.handleMenuOption(message.from, incomingMessage);
-          }
-            await whatsappService.markAsRead(message.id);
+          // v3.5: saludo una vez por turno, cortesías, búsqueda de platos con IA y seguimiento del pedido.
+          await this.atenderTexto(from, message, senderInfo);
 
         } else if (message?.type === 'interactive') {
-            if (message?.interactive.type === 'nfm_reply') {
-              await this.respFlow(message.from, screen, datosReserva, datosPedido, pedidoStr);
-              await whatsappService.markAsRead(message.id);
-              accion["pantalla"] = screen;
-            }
-            else {
-              const option = message?.interactive?.button_reply?.id;
-              await this.handleMenuOption(message.from, option);
-              await whatsappService.markAsRead(message.id);
-            }        
-      } else if (message?.type === 'image' && accion["pantalla"] === 'SUMMARY') {
-        delete accion["pantalla"];
-        const datosUsuario = userOrderDataMap[message.from] || {};
-        const imageBuffer = await downloadImageFromMeta(message.image.url);
-        
-        // 2. Subir a S3
-        const publicUrl = await uploadToPublicStorage(imageBuffer, message.image.mime_type);
-        
-        // 3. Enviar la imagen al número oficial
-        const nombre = datosUsuario.name || "";
-        const celular = datosUsuario.phone || "";
-        const direccion = datosUsuario.address || "";
-        const monto = datosUsuario.monto || "";
-        const mediopago = datosUsuario.pago || "";
-        const pedido = datosUsuario.pedidoStr || "";
-
-        const templateVars = [
-          nombre,
-          celular,
-          direccion,
-          pedido,
-          mediopago,
-          monto ? monto.toLocaleString('es-CO') : "",
-        ];
-
-        const numerosOficiales = [
-          "573137517489", // Número principal
-          "573006342114"  // Otro número oficial
-        ];
-
-        for (const numero of numerosOficiales) {
-          await whatsappService.sendTemplateComprobantePago(
-            numero,
-            "comprobante_pago",
-            publicUrl,
-            templateVars
-          )
-        }
-
-        const msg = "Gracias por compartirnos el comprobante de tu pago ✅\n\nPronto nos pondremos en contacto contigo para confirmar tu pedido 😊";
-        await whatsappService.sendMessage(message.from, msg);
-        await this.menuOpcionalHiring(message.from);
+          if (message?.interactive.type === 'nfm_reply') {
+            await this.respFlow(from, screen, datosReserva, datosPedido, pedidoStr);
+            await whatsappService.markAsRead(message.id);
+          }
+          else {
+            const option = boton;
+            await this.handleMenuOption(from, option);
+            await whatsappService.markAsRead(message.id);
+          }
+        } else if (message?.type === 'image' && sesion(from).esperandoComprobante) {
+          await this.recibirComprobante(message);
         }
       } else {
-        // v3.4: las respuestas de Flows (reserva), botones e imágenes no traen "text":
-        // antes esto lanzaba "Cannot read properties of undefined (reading 'body')" y
-        // la confirmación de la reserva y la ubicación nunca salían fuera del horario.
+        // Pedido de las últimas 3 h ("¿se demora?" después del cierre): lo atiende la IA, no el aviso de horario.
+        const pedido = obtenerSesion(from)?.pedido;
+        if (message?.type === 'text' && pedido?.enviadoAt && Date.now() - pedido.enviadoAt < 3 * 3600 * 1000) {
+          await this.handleAssistandFlow(from, message.text.body, { botones: false });
+          await whatsappService.markAsRead(message.id);
+          return;
+        }
+        // v3.4: las respuestas de Flows (reserva), botones e imágenes no traen "text".
         const incomingMessage = message?.text?.body?.toLowerCase().trim() ?? '';
-      if (message?.type === 'text' && this.isQuestion(incomingMessage)) {
-          this.assistandState[message.from] = { step: 'question' };
-          await this.handleAssistand(message.from, incomingMessage);
-      } else if (message?.type === 'text' && incomingMessage === 'ayuda') {
-          await this.helpMenu(message.from);
-      } else if (message?.type === 'text' && incomingMessage === 'carta') {
-          await whatsappService.sendMessage(message.from, "Espera que cargue la carta... 📄");
-          await this.sendMedia(message.from);
-      } else if (incomingMessage.includes('menu') || incomingMessage.includes('menú')) {
-            await this.catalogo(message.from);
-      } else if (message?.type === 'text' && (incomingMessage === 'ubicacion' || incomingMessage === 'ubicación')) {
-          await this.sendLocation(message.from);
-      } else if (message?.type === 'text' && incomingMessage === 'asesor') {
-          await this.sendContact(message.from);
-      } else if (message?.type === 'text' && this.isReservation(incomingMessage)) {
-          await this.handleMenuOption(message.from, 'option_2');
+        if (message?.type === 'text' && this.isQuestion(incomingMessage)) {
+          this.assistandState[from] = { step: 'question' };
+          await this.handleAssistand(from, incomingMessage);
+        } else if (message?.type === 'text' && incomingMessage === 'ayuda') {
+          await this.helpMenu(from);
+        } else if (message?.type === 'text' && incomingMessage === 'carta') {
+          await whatsappService.sendMessage(from, "Espera que cargue la carta... 📄");
+          await this.sendMedia(from);
+        } else if (incomingMessage.includes('menu') || incomingMessage.includes('menú')) {
+          await this.catalogo(from);
+        } else if (message?.type === 'text' && (incomingMessage === 'ubicacion' || incomingMessage === 'ubicación')) {
+          await this.sendLocation(from);
+        } else if (message?.type === 'text' && incomingMessage === 'asesor') {
+          await this.sendContact(from);
+        } else if (message?.type === 'text' && this.isReservation(incomingMessage)) {
+          await this.handleMenuOption(from, 'option_2');
+        }
+        else if (message?.type === 'interactive' && message?.interactive.type === 'nfm_reply' && screen === "RESUMEN") {
+          await this.respFlow(from, screen, datosReserva, datosPedido, pedidoStr);
+          await whatsappService.markAsRead(message.id);
+        } else if (message?.type === 'image' && sesion(from).esperandoComprobante) {
+          await this.recibirComprobante(message);
+        } else {
+          const s = sesion(from);
+          if (s.avisoCerradoAt && Date.now() - s.avisoCerradoAt < 2 * 3600 * 1000) {
+            // Ya le dijimos que estamos cerrados: respuesta corta en vez de repetir todo.
+            await whatsappService.sendMessage(from, `🌙 Ahora estamos cerrados. Te atendemos ${negocio.horarioTexto()} 😊`);
+            return;
+          }
+          s.avisoCerradoAt = Date.now();
+          const name = this.firstName(senderInfo);
+          const msg = `¡Hola ${name}! 😊\nNuestro horario de atención es ${negocio.horarioTexto()}\nSi necesitas *Reservar* puedes hacerlo en el *botón de Reservas* o si prefieres hablar con la IA🤖 haz tu pregunta con el signo ❓\n\n ¡Gracias por escribirnos! 😊`;
+          await this.menuReserva(from);
+          await whatsappService.sendMessage(from, msg, message.id);
+          return;
+        }
       }
-      else if (message?.type === 'interactive' && message?.interactive.type === 'nfm_reply' && screen==="RESUMEN") {
-        await this.respFlow(message.from, screen, datosReserva, datosPedido, pedidoStr);
-        await whatsappService.markAsRead(message.id);
-      } else {
-        const name = this.getSenderName(senderInfo).match(/^(\w+)/)?.[1];
-        const msg = `¡Hola ${name}! 😊\nNuestro horario de atención es *todos los días* de *12:00 p.m. a 10:00 p.m.*\nSi necesitas *Reservar* puedes hacerlo en el *botón de Reservas* o si prefieres hablar con la IA🤖 haz tu pregunta con el signo ❓\n\n ¡Gracias por escribirnos! 😊`;
-        await this.menuReserva(message.from);
-        await whatsappService.sendMessage(message.from, msg, message.id);
-        return;
-      }
+    } catch (error) {
+      logAxiosError('Error: ', error);
+      throw error;
     }
-  } catch (error) {
-    logAxiosError('Error: ', error);
-    throw error;
   }
-}
 
+  /**
+   * Saludo por PALABRAS (no por pedazos de texto): antes "hi" estaba dentro de
+   * "chicharrón" y "chips", "hl" en otras palabras, y "gracias" contaba como saludo:
+   * el bot volvía a dar la bienvenida en vez de atender el pedido.
+   */
   isGreeting(message) {
-    const lower = message.toLowerCase();
-    return (
-      lower.includes('hola') ||
-      lower.includes('hello') ||
-      lower.includes('hl') ||
-      lower.includes('hi') ||
-      lower.includes('buenas') ||
-      lower.includes('buenos dias') ||
-      lower.includes('buenos días') ||
-      lower.includes('buenas tardes') ||
-      lower.includes('buenas noches') ||
-      lower.includes('saludos') ||
-      lower.includes('como estás') ||
-      lower.includes('gracias') ||
-      lower.includes('muchas gracias')
-    );
+    const t = normalizar(message);
+    return /^(hola|holi|hello|hi|hl|buenas|buen dia|buenos dias|buenas tardes|buenas noches|saludos|que mas|como estas)\b/.test(t)
+      || /\b(hola|buenas tardes|buenas noches|buenos dias)\b/.test(t) && t.split(/\s+/).length <= 4;
   }
 
   async getDay() {
@@ -202,7 +181,8 @@ class MessageHandler {
       lower.includes('pedir') ||
       lower.includes('pedido') ||
       lower.includes('orden') ||
-      lower.includes('comprar')
+      lower.includes('comprar') ||
+      lower.includes('domicilio')
     );
   }
 
@@ -245,17 +225,30 @@ class MessageHandler {
   );
 }
 
+  /** Carta que corresponde a lo que escribió el cliente (o null). */
+  cartaPorTexto(message) {
+    const t = normalizar(message);
+    for (const [re, key] of PALABRAS_CARTA) if (re.test(t)) return key;
+    return null;
+  }
+
   getSenderName(senderInfo) {
-    return senderInfo.profile?.name || senderInfo.profile?.username || "Cliente";
+    return senderInfo?.profile?.name || senderInfo?.profile?.username || "Cliente";
+  }
+
+  /** Primer nombre del perfil ("~Josse" → "Josse"; con tildes y ñ). */
+  firstName(senderInfo) {
+    return this.getSenderName(senderInfo).replace(/^[~@]+/, '').match(/^([\p{L}\p{N}_]+)/u)?.[1] || '';
   }
 
   async sendWelcomeMessage(to, messageId, senderInfo) {
     try {
-        const name = this.getSenderName(senderInfo).match(/^(\w+)/)?.[1];
+        const name = this.firstName(senderInfo);
         const welcomeMessage = `¡Hola 👋 ${name}!\nBienvenid@ a *Samuelito RestoBar*🌭🍔🍟\n\n¿En qué te puedo ayudar? 😊\n\nEscribe *ayuda* si la necesitas`;
         await whatsappService.sendMessage(to, welcomeMessage, messageId);
     } catch (error) {
-      printDetailedError(error);
+      // (antes llamaba a printDetailedError, que no existe en este archivo)
+      logAxiosError('sendWelcomeMessage', error);
     }
   }
 
@@ -301,25 +294,28 @@ class MessageHandler {
     await whatsappService.sendInteractiveButtons(to, menuMessage, buttons);
   }
 
-  async menuPedido(to) {
+  // v3.5: cada Flow lleva un flow_token con el número del cliente ("pedido:<número>:…"),
+  // así el endpoint /flow sabe de quién es aunque dos clientes lo llenen a la vez.
+  async menuPedido(to, textos = {}) {
     const action = {
       name: "flow",
       parameters: {
         "flow_message_version": "3",
-        "flow_id": "1667286921657383",
+        "flow_id": config.FLOW_ID_PEDIDO,
+        "flow_token": tokenFlow('pedido', to),
         "flow_cta": "Pedido"
       },
     }
-    return await whatsappService.sendFlow(to, action);
+    return await whatsappService.sendFlow(to, action, textos);
   }
   
   async menuReserva(to) {
-    idNumber["numero"] = to;
     const action = {
       name: "flow",
       parameters: {
         "flow_message_version": "3",
-        "flow_id": "1111929481300178",
+        "flow_id": config.FLOW_ID_RESERVA,
+        "flow_token": tokenFlow('reserva', to),
         "flow_cta": "Reserva"
       },
     }
@@ -698,7 +694,7 @@ else {
     return await whatsappService.sendMenu(to, template);
   }
   catch (error) {
-      printDetailedError(error);
+      logAxiosError('menuCarta2', error); // (antes printDetailedError, que no existe: el error se perdía)
     }
 }
 
@@ -776,7 +772,8 @@ else {
       name: "flow",
       parameters: {
         "flow_message_version": "3",
-        "flow_id": "1847588183274663",
+        "flow_id": config.FLOW_ID_ENCUESTA,
+        "flow_token": tokenFlow('encuesta', to),
         "flow_cta": "Encuesta"
       },
     }
@@ -805,16 +802,34 @@ else {
   
   async handleMenuOption(to, option) {
     let response;
+    // v3.5: confirmar / agregar / cambiar el pedido y adicionales.
+    switch (option) {
+      case 'ped_ok': return this.confirmarPedido(to);
+      case 'ped_mas': return this.prepararCarrito(to, 'agregar');
+      case 'ped_cambiar': return this.prepararCarrito(to, 'reemplazar');
+      case 'cart_sumar': return this.usarCarritoNuevo(to, 'agregar');
+      case 'cart_reemplazar': return this.usarCarritoNuevo(to, 'reemplazar');
+      case 'ad_si': return this.procesarAdicional(to);
+      case 'ad_no': return this.usarCarritoNuevo(to, 'nuevo');
+      default: break;
+    }
+    // v3.5: una carta por palabra clave ("quiero ver las hamburguesas").
+    if (typeof option === 'string' && option.startsWith('cat:')) {
+      const key = option.slice(4);
+      if (key === 'bebidas_postres') return this.menuCarta3(to);
+      if (key === 'rapidas_mariscos') await this.menuCarta2(to);
+      else await this.menuCarta(to);
+      await this.botonSi(to);
+      return;
+    }
     switch (option) {
       case 'option_1':
         await this.menuCarta(to);
         await this.menuCarta2(to);
-        this.botonSi(to);
+        await this.botonSi(to);
         // await this.catalogo(to);
-        idNumber["numero"] = to;
         break;
       case 'option_2':
-        idNumber["numero"] = to;
         await this.sendMediaEvento(to);
         await this.menuReserva(to);
         break;
@@ -862,129 +877,172 @@ else {
       }
   }
 
-  async handleHiringFlow(to, pedido, datosPedido) {
+  /** (Compatibilidad) Antes mandaba el Flow de una vez; ahora primero se confirma el pedido. */
+  async handleHiringFlow(to) {
+    return this.pedirConfirmacion(to);
+  }
+
+  /**
+   * Cobro según el medio de pago elegido en el Flow (Efectivo, PSE o Transferencia).
+   * Se usa al llenar el Flow y también para los ADICIONALES (mismos datos, sin volver a llenarlo).
+   * Devuelve el texto para el cliente.
+   */
+  async cobrarPedido(to, datosPedido, pedidoStr, { adicional = false } = {}) {
     let response;
-
-    response = `*Pedido:*
-
-${pedido}
-
-Total: $${datosPedido.monto.toLocaleString('es-CO')} COP`;
-    await this.menuPedido(to);
-
-      await whatsappService.sendMessage(to, response);
+    const pedidoStrTemplate = String(pedidoStr ?? '').replace(/\n/g, '  |  ');
+    const datos = datosPedido.datos;
+    const direccion = esDomicilio(datos) ? datos.address : RECOGIDA;
+    if (datos.pago === "Efectivo") {
+      const templateVars = [
+        datos.name,
+        datos.phone,
+        direccion,
+        pedidoStrTemplate,
+        datos.pago,
+        datosPedido.monto ? datosPedido.monto.toLocaleString('es-CO') : ""
+      ];
+      await this.avisarNumerosOficiales("mensaje_nuevo_pedido", IMAGEN_PEDIDO, templateVars);
+      response = adicional
+        ? `✅ ¡Adicional recibido! Lo sumamos a tu pedido.\n*Total del adicional:* ${cop(datosPedido.monto)} (pagas en efectivo al recibir) 🤗`
+        : "✅¡Pedido recibido!\nPronto nos pondremos en contacto contigo! 🤗";
+    } else if (datos.pago === "PSE") {
+      try {
+        userOrderDataMap[to] = {
+          ...datos,
+          address: direccion,
+          monto: datosPedido.monto,
+          pedidoStr: pedidoStrTemplate
+        };
+        // Generar enlace de pago WOMPI (con el domicilio incluido si aplica)
+        const idlink = await createWompiPaymentLink(
+          datosPedido.monto * 100, // Monto en centavos
+          "COP",
+          pedidoStr
+        );
+        transactionToPhoneMap[idlink] = to;
+        // Enviar mensaje con el enlace de pago
+        response = `*Resumen de tu pedido*🛒:\n\n${pedidoStr}\n*Total:* $${datosPedido.monto.toLocaleString('es-CO')} COP\n\nUtiliza el siguiente *link de pago*:\n\nhttps://checkout.wompi.co/l/${idlink}\n\nLuego de realizar el pago espera unos segundos y automáticamente te lo confirmamos! 😊`;
+      } catch (error) {
+        response = "Hubo un problema al generar el enlace de pago. Por favor, intenta nuevamente.";
+        reportarFalla(error, { to, step: 'generar el link de pago de Wompi (PSE)', monto: datosPedido.monto, pedido: pedidoStrTemplate });
+      }
+    } else if (datos.pago === "Transferencia") {
+      userOrderDataMap[to] = {
+        ...datos,
+        address: direccion,
+        monto: datosPedido.monto,
+        pedidoStr: pedidoStrTemplate
+      };
+      sesion(to).esperandoComprobante = true;
+      response = `*Resumen de tu pedido*🛒:\n\n${pedidoStr}\n*Total:* $${datosPedido.monto.toLocaleString('es-CO')} COP\n\n🏦Cuentas bancarias:\n\n*Nequi:* 3117445749\n*Mar** Ari***\n\n*Bancolombia Ahorros:* 70423175395\nMar** Pat** Ari**\n\n*Banco BBVA:* 0614001209\n\nLuego, envíanos el comprobante de la transferencia (captura) para confirmar tu pedido 😊`;
+    }
+    return response;
   }
 
   async respFlow(to, screen, datosReserva, datosPedido, pedidoStr) {
     let response;
-    const pedidoStrTemplate = pedidoStr.replace(/\n/g, '  |  ');
     if (screen === "SUMMARY") {
-      if (datosPedido.datos.address) {
-        (datosPedido.monto += 3000).toLocaleString('es-CO');
-      } else {
-        datosPedido.datos.address = "Recogida en restaurante";
+      if (!datosPedido?.datos) {
+        await whatsappService.sendMessage(to, 'No encontré los datos de tu pedido 😔. Vuelve a enviarlo desde el carrito, por favor.');
+        return;
       }
-      if (datosPedido.datos.pago === "Efectivo") {
-        const templateVars = [
-          datosPedido.datos.name,
-          datosPedido.datos.phone,
-          datosPedido.datos.address,
-          pedidoStrTemplate,
-          datosPedido.datos.pago,
-          datosPedido.monto ? datosPedido.monto.toLocaleString('es-CO') : ""
-        ];
-
-        const numerosOficiales = [
-          "573137517489", // Número principal
-          "573006342114"  // Otro número oficial
-        ];
-
-        for (const numero of numerosOficiales) {
-          await whatsappService.sendTemplateComprobantePago(
-            numero,
-            "mensaje_nuevo_pedido",
-            "https://micarta.s3.us-east-1.amazonaws.com/Copia+de+Reserva+tu+mesa.jpg",
-            templateVars
-          )
-        };
-        response = "✅¡Pedido recibido!\nPronto nos pondremos en contacto contigo! 🤗";
-        await this.menuOpcionalHiring(to);
-      } else if (datosPedido.datos.pago === "PSE") {
-        try {
-          userOrderDataMap[to] = {
-            ...datosPedido.datos,
-            monto: datosPedido.monto,
-            pedidoStr: pedidoStrTemplate
-          };
-          // Generar enlace de pago WOMPi
-          const idlink = await createWompiPaymentLink(
-            datosPedido.monto * 100, // Monto en centavos
-            "COP",
-            pedidoStr
-          );
-          transactionToPhoneMap[idlink] = to;
-          // Enviar mensaje con el enlace de pago
-          response = `*Resumen de tu pedido*🛒:\n\n${pedidoStr}\n*Total:* $${datosPedido.monto.toLocaleString('es-CO')} COP\n\nUtiliza el siguiente *link de pago*:\n\nhttps://checkout.wompi.co/l/${idlink}\n\nLuego de realizar el pago espera unos segundos y automáticamente te lo confirmamos! 😊`;
-        } catch (error) {
-          response = "Hubo un problema al generar el enlace de pago. Por favor, intenta nuevamente.";
+      // Domicilio ($3.000) solo si escribió una dirección, y una sola vez aunque el Flow llegue repetido.
+      if (esDomicilio(datosPedido.datos)) {
+        if (!datosPedido.domicilioIncluido) {
+          datosPedido.monto = Number(datosPedido.monto || 0) + negocio.domicilio;
+          datosPedido.domicilioIncluido = true;
         }
-    } else if (datosPedido.datos.pago === "Transferencia") {
-      userOrderDataMap[to] = {
-        ...datosPedido.datos,
-        monto: datosPedido.monto,
-        pedidoStr: pedidoStrTemplate
-      };
-        response = `*Resumen de tu pedido*🛒:\n\n${pedidoStr}\n*Total:* $${datosPedido.monto.toLocaleString('es-CO')} COP\n\n🏦Cuentas bancarias:\n\n*Nequi:* 3117445749\n*Mar** Ari***\n\n*Bancolombia Ahorros:* 70423175395\nMar** Pat** Ari**\n\n*Banco BBVA:* 0614001209\n\nLuego, envíanos el comprobante de la transferencia (captura) para confirmar tu pedido 😊`;
+      } else {
+        datosPedido.datos.address = RECOGIDA;
+      }
+      response = await this.cobrarPedido(to, datosPedido, pedidoStr);
+      if (response) await whatsappService.sendMessage(to, response);
+      // En efectivo el pedido ya quedó: se ofrece la encuesta (después del "¡Pedido recibido!").
+      if (datosPedido.datos.pago === "Efectivo") await this.menuOpcionalHiring(to);
+      return;
+    } else if (screen === "RESUMEN") {
+      if (!datosReserva) {
+        await whatsappService.sendMessage(to, 'No encontré los datos de tu reserva 😔. Vuelve a llenarla, por favor.');
+        await this.menuReserva(to);
+        return;
+      }
+      const horario = datosReserva.evento === "Festival Gastronomico" 
+        ? 'hora' 
+        : datosReserva.evento === "Cumpleaños" 
+          ? 'horario'
+          : datosReserva.evento === "Reserva normal"
+          ? 'horanormal'
+          : "";
+      
+      const calendario = datosReserva.evento === "Festival Gastronomico" 
+        ? 'fechafestival' 
+        : datosReserva.evento === "Cumpleaños" 
+          ? 'fecha'
+          : datosReserva.evento === "Reserva normal"
+          ? 'fechanormal'
+          : "";
+
+      // Variables para la plantilla (en el orden del body)
+      const templateVars = [
+        datosReserva.nombre,
+        datosReserva.celular,
+        datosReserva.evento,
+        datosReserva[calendario],
+        datosReserva[horario],
+        datosReserva.cuantos,
+        datosReserva.donde
+      ];
+
+      for (const numero of [to, ...negocio.numerosOficiales]) {
+        await whatsappService.sendTemplateReserva(numero, IMAGEN_RESERVA, templateVars);
+      }
+      await this.sendLocation(to);
+
+    } else if (screen === "RATE") {
+      response = "¡Recibido!\nMuchas gracias por tu opinión! 🤗";
     }
-   } else if (screen === "RESUMEN") {
-    const horario = datosReserva.evento === "Festival Gastronomico" 
-      ? 'hora' 
-      : datosReserva.evento === "Cumpleaños" 
-        ? 'horario'
-        : datosReserva.evento === "Reserva normal"
-        ? 'horanormal'
-        : "";
-    
-        const calendario = datosReserva.evento === "Festival Gastronomico" 
-      ? 'fechafestival' 
-      : datosReserva.evento === "Cumpleaños" 
-        ? 'fecha'
-        : datosReserva.evento === "Reserva normal"
-        ? 'fechanormal'
-        : "";
-
-    // Variables para la plantilla (en el orden del body)
-  const templateVars = [
-    datosReserva.nombre,
-    datosReserva.celular,
-    datosReserva.evento,
-    datosReserva[calendario],
-    datosReserva[horario],
-    datosReserva.cuantos,
-    datosReserva.donde
-  ];
-  
-  const publicUrl = "https://micarta.s3.us-east-1.amazonaws.com/confirmacion_reserva.jpeg";
-  const numerosOficiales = [
-    to,
-    "573137517489",
-    "573006342114"
-  ];
-  
-  for (const numero of numerosOficiales) {
-    await whatsappService.sendTemplateReserva(numero, publicUrl, templateVars);
+    if (response) {
+      await whatsappService.sendMessage(to, response);
+    }
   }
-  this.sendLocation(to);
 
-  } else if (screen === "RATE") {
-    response = "¡Recibido!\nMuchas gracias por tu opinión! 🤗";
-  }
-  if (response) {
-    await whatsappService.sendMessage(to, response);
-  }
-}
+  /** Comprobante de transferencia (imagen) → S3 → aviso a los números oficiales. */
+  async recibirComprobante(message) {
+    const from = message.from;
+    sesion(from).esperandoComprobante = false;
+    const datosUsuario = userOrderDataMap[from] || {};
+    let publicUrl = IMAGEN_PEDIDO;
+    try {
+      // 1. Descargar la imagen de Meta y 2. subirla a S3
+      const imageBuffer = await downloadImageFromMeta(message.image.url);
+      publicUrl = await uploadToPublicStorage(imageBuffer, message.image.mime_type);
+    } catch (error) {
+      logAxiosError('comprobante', error);
+      reportarFalla(error, { to: from, level: 'warning', step: 'descargar el comprobante de Meta y subirlo a S3' });
+    }
+    // 3. Enviar la imagen a los números oficiales
+    const templateVars = [
+      datosUsuario.name || "",
+      datosUsuario.phone || "",
+      datosUsuario.address || "",
+      datosUsuario.pedidoStr || "",
+      datosUsuario.pago || "",
+      datosUsuario.monto ? datosUsuario.monto.toLocaleString('es-CO') : "",
+    ];
+    await this.avisarNumerosOficiales("comprobante_pago", publicUrl, templateVars);
 
-async handleWompiEvent(transaction, telefono) {
+    const msg = "Gracias por compartirnos el comprobante de tu pago ✅\n\nPronto nos pondremos en contacto contigo para confirmar tu pedido 😊";
+    await whatsappService.sendMessage(from, msg);
+    await this.menuOpcionalHiring(from);
+  }
+
+  async avisarNumerosOficiales(plantilla, imagen, templateVars) {
+    for (const numero of negocio.numerosOficiales) {
+      await whatsappService.sendTemplateComprobantePago(numero, plantilla, imagen, templateVars);
+    }
+  }
+
+  async handleWompiEvent(transaction) {
     try {
       const transactionId = transaction.id;
       const paymentLinkId = transaction.payment_link_id;
@@ -992,8 +1050,9 @@ async handleWompiEvent(transaction, telefono) {
       const spreadsheetId = process.env.SPREADSHEETID_PEDIDO;
       
       if (!phone) {
-      console.error("No se encontró el número de WhatsApp para la transacción:", paymentLinkId);
-      return;
+        console.error("No se encontró el número de WhatsApp para la transacción:", paymentLinkId);
+        reportarFalla(new Error(`Pago de Wompi sin cliente asociado (link ${paymentLinkId}): el cliente no recibió la confirmación`), { step: 'evento de pago de Wompi', transaccion: transaction.id, estado: transaction.status });
+        return;
       }
       let status;
       try {
@@ -1004,52 +1063,32 @@ async handleWompiEvent(transaction, telefono) {
       }
       console.log(`Estado de la transacción ${transactionId}: ${status}`);
       let estadoPago;
-    if (status === "APPROVED") {
-      estadoPago = "Pagado";
-    }
-    else if (status === "DECLINED" || status === "VOIDED" || status === "ERROR") {
-      estadoPago = "Rechazado";
-    } else if (status === "PENDING") {
-      estadoPago = "Pendiente";
-    } else {
-      estadoPago = status;
-    }
-    const fechayhora = paymentRowMap[phone]
-    await saveUserDataByNumber({ numero: phone, fechayhora, estado: estadoPago }, spreadsheetId);
-
-    let statusMsg = "";
-    if (status === "APPROVED") {
-      const datosUsuario = userOrderDataMap[telefono] || {};
-      // 3. Enviar la imagen al número oficial
-      const nombre = datosUsuario.name || "";
-      const celular = datosUsuario.phone || "";
-      const direccion = datosUsuario.address || "";
-      const monto = datosUsuario.monto || "";
-      const mediopago = datosUsuario.pago || "";
-      const pedido = datosUsuario.pedidoStr || "";
-
-      const templateVars = [
-        nombre,
-        celular,
-        direccion,
-        pedido,
-        mediopago,
-        monto ? monto.toLocaleString('es-CO') : "",
-      ];
-
-      const numerosOficiales = [
-        "573137517489", // Número principal
-        "573006342114"  // Otro número oficial
-      ];
-
-      for (const numero of numerosOficiales) {
-        await whatsappService.sendTemplateComprobantePago(
-          numero,
-          "mensaje_nuevo_pedido",
-          "https://micarta.s3.us-east-1.amazonaws.com/Copia+de+Reserva+tu+mesa.jpg",
-          templateVars
-        );
+      if (status === "APPROVED") {
+        estadoPago = "Pagado";
       }
+      else if (status === "DECLINED" || status === "VOIDED" || status === "ERROR") {
+        estadoPago = "Rechazado";
+      } else if (status === "PENDING") {
+        estadoPago = "Pendiente";
+      } else {
+        estadoPago = status;
+      }
+      const fechayhora = paymentRowMap[phone]
+      await saveUserDataByNumber({ numero: phone, fechayhora, estado: estadoPago }, spreadsheetId);
+
+      let statusMsg = "";
+      if (status === "APPROVED") {
+        // Antes se buscaba con el número del último cliente que escribió; ahora, con el de la transacción.
+        const datosUsuario = userOrderDataMap[phone] || {};
+        const templateVars = [
+          datosUsuario.name || "",
+          datosUsuario.phone || "",
+          datosUsuario.address || "",
+          datosUsuario.pedidoStr || "",
+          datosUsuario.pago || "",
+          datosUsuario.monto ? datosUsuario.monto.toLocaleString('es-CO') : "",
+        ];
+        await this.avisarNumerosOficiales("mensaje_nuevo_pedido", IMAGEN_PEDIDO, templateVars);
 
         statusMsg = "✅ ¡Pago aprobado!\nTu pedido está confirmado.\nPronto nos pondremos en contacto contigo.";
         await this.menuOpcionalHiring(phone);
@@ -1108,7 +1147,7 @@ async handleWompiEvent(transaction, telefono) {
     appendToSheet(userData, spreadsheetId);
   }
   
-completeOrder(productos, data) {
+completeOrder(productos, data, { adicional = false } = {}) {
   const waiterOrderArea = {
     // Barril
     "6134f560fd56a10e49c4f666": [
@@ -1207,8 +1246,8 @@ completeOrder(productos, data) {
     notes: data.recomendacion || ""
   }));
 
-  // Si hay domicilio, agrégalo como un producto más (puedes asignar área si lo deseas)
-  if (data.address) {
+  // Si hay domicilio, agrégalo como un producto más (en un ADICIONAL no se cobra otra vez)
+  if (!adicional && esDomicilio(data)) {
     orders.push({
       product: "677ad5b1b4797f0dcba09e41",
       locationStock: "5d4619b4a8337b56866de6ff",
@@ -1220,18 +1259,18 @@ completeOrder(productos, data) {
 
   const pedidoLoggro = {
     table: "6939640ddf7998fb29e63fab",
-    groupName: `Nombre: ${data.name}\nTeléfono: ${data.phone}\nDirección: ${data.address}`,
+    groupName: `${adicional ? '➕ ADICIONAL\n' : ''}Nombre: ${data.name}\nTeléfono: ${data.phone}\nDirección: ${esDomicilio(data) ? data.address : RECOGIDA}`,
     orders
   };
 
   enviarPedidoALoggro(pedidoLoggro);
 }
 
-  completeSurvey(data) {
+  completeSurvey(data, numeroCliente) {
     let fechayhora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     let userData;
     const spreadsheetId = process.env.SPREADSHEETID_SURVEY;
-    const numero = idNumber["numero"] || "No disponible";
+    const numero = numeroCliente || "No disponible"; // viene del flow_token (antes: el último que escribió)
       userData = [
         numero,
         data.experiencia_cliente,
@@ -1245,10 +1284,10 @@ completeOrder(productos, data) {
     appendToSheet(userData, spreadsheetId);
   }
 
-  completeAppointment(data) {
+  completeAppointment(data, numeroCliente) {
     let fechayhora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     const spreadsheetId = process.env.SPREADSHEETID_RESERVA;
-    const number = idNumber["numero"] || "No disponible";
+    const number = numeroCliente || "No disponible"; // viene del flow_token (antes: el último que escribió)
     const horario = data.evento === "Festival Gastronomico" 
       ? 'hora' 
       : data.evento === "Cumpleaños" 
@@ -1278,35 +1317,31 @@ completeOrder(productos, data) {
     appendToSheet(userData, spreadsheetId);
   }
 
-  async handleAssistandFlow(to, message) {
-    const state = this.assistandState[to];
-    let response;
-
-    const menuMessage = "¿Resolví tu pregunta?";
-    const buttons = [
-      { type: 'reply', reply: { id: 'option_4', title: "Si, Gracias 😊" } },
-      { type: 'reply', reply: { id: 'option_3', title: 'Hacer otra pregunta' } },
-      // { type: 'reply', reply: { id: 'op_3', title: 'Hablar con asesor 🤵' } }
-    ];
-
-    switch (state.step) {
-      case 'question':
-        response = (await geminiService(message, to)) ?? AI_UNAVAILABLE;
-        break;
-      default:
-        response = "Lo siento 😔 no entendí tu respuesta\nPor Favor, elige una de las opciones del menú.";
-    }
-
+  /**
+   * Respuesta de la IA del CRM. Si el cliente tiene un pedido sin terminar, después
+   * de responder se le recuerda (sin perder el pedido); si no, "¿Resolví tu pregunta?"
+   * solo cuando fue una pregunta.
+   */
+  async handleAssistandFlow(to, message, { botones = true } = {}) {
     delete this.assistandState[to];
+    const response = (await geminiService(message, to)) ?? AI_UNAVAILABLE;
     await whatsappService.sendMessage(to, response);
-    await whatsappService.sendInteractiveButtons(to, menuMessage, buttons);
+    if (this.pedidoPendiente(to)) {
+      await this.recordarPedido(to);
+    } else if (botones) {
+      await whatsappService.sendInteractiveButtons(to, "¿Resolví tu pregunta?", [
+        { type: 'reply', reply: { id: 'option_4', title: "Si, Gracias 😊" } },
+        { type: 'reply', reply: { id: 'option_3', title: 'Hacer otra pregunta' } },
+        // { type: 'reply', reply: { id: 'op_3', title: 'Hablar con asesor 🤵' } }
+      ]);
+    }
   }
 
   async handleAssistand(to, message) {
     const state = this.assistandState[to];
     let response;
 
-    switch (state.step) {
+    switch (state?.step) {
       case 'question':
         response = (await geminiService(message, to)) ?? AI_UNAVAILABLE;
         break;
@@ -1377,6 +1412,338 @@ completeOrder(productos, data) {
     await whatsappService.sendLocationMessage(to, latitude, longitude, name, address);
   }
 
+
+  // ===========================================================================
+  //  v3.5 · Conversación
+  // ===========================================================================
+
+  /**
+   * Texto del cliente dentro del horario.
+   *  1. Saludo: la bienvenida sale UNA vez por turno; "hola, ¿se demora?" atiende la pregunta.
+   *  2. "gracias", "ok" → respuesta corta (nunca la bienvenida otra vez).
+   *  3. Palabras clave de siempre (ayuda, carta, menú, ubicación, asesor, reservar).
+   *  4. Preguntas generales (tiempos, pagos, domicilio, estado del pedido) → IA del CRM.
+   *  5. Platos ("me regalas 2 perros") → búsqueda con IA → tarjetas / carrusel
+   *     (solo productos con foto en Meta; Asados al Barril solo los domingos).
+   *  6. Todo lo demás → IA del CRM (antes quedaba sin respuesta).
+   * Si hay un pedido sin terminar, se le recuerda después de responder.
+   */
+  async atenderTexto(from, message, senderInfo) {
+    try {
+      return await this.responderTexto(from, message, senderInfo);
+    } finally {
+      await whatsappService.markAsRead(message.id);
+    }
+  }
+
+  async responderTexto(from, message, senderInfo) {
+    const texto = String(message.text?.body ?? '').trim();
+    const s = sesion(from);
+
+    const { saludo, resto } = separarSaludo(texto);
+    if (saludo) {
+      const turno = turnoActual() ?? 'fuera';
+      const primeraVez = s.bienvenidaTurno !== turno;
+      if (primeraVez) {
+        s.bienvenidaTurno = turno;
+        await this.sendWelcomeMessage(from, message.id, senderInfo);
+      }
+      if (!resto) {
+        if (!primeraVez) {
+          const nombre = this.firstName(senderInfo);
+          await whatsappService.sendMessage(from, `¡Hola de nuevo${nombre ? `, ${nombre}` : ''}! 😊 ¿En qué te puedo ayudar?`);
+        }
+        if (this.pedidoPendiente(from)) await this.recordarPedido(from);
+        else if (primeraVez) await this.sendWelcomeMenu(from);
+        return;
+      }
+    }
+
+    const t = saludo ? resto : texto;
+    const lower = t.toLowerCase().trim();
+    const pregunta = this.isQuestion(lower);
+
+    if (esCortesia(t)) {
+      await whatsappService.sendMessage(from, this.pedidoPendiente(from) ? '¡Con gusto! 😊' : '¡Con gusto! 😊 Aquí estamos si necesitas algo más.');
+      if (this.pedidoPendiente(from)) await this.recordarPedido(from);
+      return;
+    }
+    if (esCancelar(t) && this.pedidoPendiente(from)) return this.cancelarPedido(from);
+
+    // Palabras clave (igual que antes).
+    if (lower === 'ayuda') return this.helpMenu(from);
+    if (lower.includes('carta')) {
+      await whatsappService.sendMessage(from, "Espera que cargue la carta... 📄");
+      return this.sendMedia(from);
+    }
+    if (/\bmen[uú]\b/.test(lower) && !hablaDePlatos(t)) return this.catalogo(from);
+    if (lower === 'ubicacion' || lower === 'ubicación') return this.sendLocation(from);
+    if (lower === 'asesor') return this.sendContact(from);
+    if (this.isReservation(lower)) return this.handleMenuOption(from, 'option_2');
+    if (this.appointmentState[from]) return this.handleAppointmentFlow(from, lower);
+
+    // "Hacer otra pregunta" o preguntas de tiempos, pagos, domicilio, estado del pedido → IA.
+    if (this.assistandState[from] || esPreguntaGeneral(t)) return this.handleAssistandFlow(from, t, { botones: pregunta });
+
+    // Platos: la IA completa el nombre y se muestran las tarjetas del catálogo.
+    if (hablaDePlatos(t)) {
+      const { tarjetas, sinFoto, soloDomingo } = await buscarPlatos(from, t);
+      const carta = this.cartaPorTexto(lower);
+      if (tarjetas.length > 10 && carta && !pregunta) return this.handleMenuOption(from, `cat:${carta}`); // "quiero una pizza" → la carta completa
+      if (tarjetas.length) {
+        if (pregunta) {
+          // "¿la Samuelito Burger qué trae?": responde la IA y debajo quedan las tarjetas para pedir.
+          const respuesta = await geminiService(t, from);
+          if (respuesta) await whatsappService.sendMessage(from, respuesta);
+        }
+        await enviarTarjetas(from, tarjetas, t);
+        return;
+      }
+      if (soloDomingo?.length) {
+        // "Chicharrón al barril" un martes: solo los domingos.
+        await whatsappService.sendMessage(from, textoSoloDomingo(soloDomingo));
+        return;
+      }
+      if (sinFoto?.length && !pregunta) {
+        // Lo pidió, pero todavía no tiene foto en Meta (no sale en el catálogo de WhatsApp).
+        await whatsappService.sendMessage(from, textoSinFoto(sinFoto));
+        return;
+      }
+    }
+    const carta = this.cartaPorTexto(lower);
+    if (carta && !pregunta) return this.handleMenuOption(from, `cat:${carta}`);
+    if (!pregunta && this.isOrder(lower)) {
+      if (this.pedidoPendiente(from)) return this.recordarPedido(from);
+      return this.handleMenuOption(from, 'option_1');
+    }
+    return this.handleAssistandFlow(from, t, { botones: pregunta });
+  }
+
+  // ===========================================================================
+  //  v3.5 · Pedido: confirmar, agregar, cambiar, recordatorios y adicionales
+  // ===========================================================================
+
+  /** Pedido del carrito que todavía no tiene los datos del Flow. */
+  pedidoPendiente(to) {
+    const s = obtenerSesion(to);
+    return Boolean(s?.pedido && ['confirmar', 'datos'].includes(s.pedido.estado) && s.productos?.length);
+  }
+
+  /** Nombres y total de un carrito (los nombres salen de src/data/catalogo.js). */
+  resumenCarrito(items) {
+    const lineas = items.map((item) => {
+      const nombre = nombrePorId[item.product_retailer_id] || item.product_retailer_id;
+      if (!nombrePorId[item.product_retailer_id]) console.warn('[pedido] producto sin nombre en data/catalogo.js:', item.product_retailer_id);
+      return `${nombre} x${item.quantity}`;
+    });
+    const monto = items.reduce((t, i) => t + (Number(i.item_price) || 0) * (Number(i.quantity) || 1), 0);
+    return { pedidoStr: lineas.join('\n'), monto };
+  }
+
+  /** Carrito que llega del catálogo de WhatsApp ("Pedido del catálogo"). */
+  async recibirCarrito(to, order) {
+    const items = (order?.product_items ?? []).map((i) => ({
+      product_retailer_id: String(i.product_retailer_id),
+      quantity: Number(i.quantity) || 1,
+      item_price: Number(i.item_price) || 0,
+      currency: i.currency,
+    }));
+    if (!items.length) return;
+    const s = sesion(to);
+
+    if (!isWithinBusinessHours()) {
+      await whatsappService.sendMessage(to, `🌙 En este momento estamos cerrados. Recibimos pedidos ${negocio.horarioTexto()}.\nTu carrito queda guardado en WhatsApp 🛒: envíalo de nuevo cuando abramos 😊`);
+      return;
+    }
+
+    // ¿Ya llenó el Flow hace poco? Puede ser un ADICIONAL a ese pedido.
+    const p = s.pedido;
+    if (p?.estado === 'enviado' && p.datos && Date.now() - (p.ultimoAt ?? p.enviadoAt ?? 0) < config.ADICIONAL_MINUTOS * 60000) {
+      s.carritoNuevo = items;
+      const { pedidoStr, monto } = this.resumenCarrito(items);
+      await whatsappService.sendInteractiveButtons(to, `Recibí estos productos 🛒\n\n${pedidoStr}\n*Total:* ${cop(monto)}\n\n¿Son un *adicional* para el pedido que ya enviaste? (mismos datos de entrega y pago, sin volver a llenar el formulario)`.slice(0, 1024), [
+        { type: 'reply', reply: { id: 'ad_si', title: 'Sí, es adicional' } },
+        { type: 'reply', reply: { id: 'ad_no', title: 'Es un pedido nuevo' } },
+      ]);
+      return;
+    }
+
+    // ¿Tiene un pedido sin terminar? Se suma o se reemplaza (lo que haya elegido, o se le pregunta).
+    if (this.pedidoPendiente(to)) {
+      if (s.modoCarrito) {
+        const modo = s.modoCarrito;
+        s.modoCarrito = null;
+        return this.aplicarCarrito(to, items, modo);
+      }
+      s.carritoNuevo = items;
+      const nuevo = this.resumenCarrito(items);
+      await whatsappService.sendInteractiveButtons(to, `Ya tienes un pedido sin terminar:\n\n${s.pedidoStr}\n\nY acabas de enviar:\n\n${nuevo.pedidoStr}\n\n¿Qué hago con estos productos?`.slice(0, 1024), [
+        { type: 'reply', reply: { id: 'cart_sumar', title: 'Agregar al pedido' } },
+        { type: 'reply', reply: { id: 'cart_reemplazar', title: 'Reemplazar pedido' } },
+      ]);
+      return;
+    }
+    return this.aplicarCarrito(to, items, 'nuevo');
+  }
+
+  /** Arma el pedido con el carrito (nuevo, sumado al anterior o reemplazándolo) y pide confirmarlo. */
+  async aplicarCarrito(to, items, modo = 'nuevo') {
+    const s = sesion(to);
+    let lista = items;
+    if (modo === 'agregar' && s.productos?.length) {
+      const porId = new Map(s.productos.map((i) => [i.product_retailer_id, { ...i }]));
+      for (const i of items) {
+        const actual = porId.get(i.product_retailer_id);
+        if (actual) actual.quantity = (Number(actual.quantity) || 0) + (Number(i.quantity) || 0);
+        else porId.set(i.product_retailer_id, { ...i });
+      }
+      lista = [...porId.values()];
+    }
+    const { pedidoStr, monto } = this.resumenCarrito(lista);
+    nuevoPedido(to, { productos: lista, pedidoStr, monto });
+    const recordatorios = modo === 'nuevo' ? 0 : s.pedido?.recordatorios ?? 0;
+    s.pedido = { estado: 'confirmar', creadoAt: Date.now(), recordatorios };
+    s.carritoNuevo = null;
+    s.modoCarrito = null;
+    await this.pedirConfirmacion(to, { modo });
+    this.programarRecordatorio(to);
+  }
+
+  /** "¿Está todo bien?" antes de mandar el Flow: confirmar, agregar más o cambiar. */
+  async pedirConfirmacion(to, { modo = 'nuevo' } = {}) {
+    const s = sesion(to);
+    const intro = modo === 'agregar' ? '✅ Listo, lo agregué.\n\n' : modo === 'reemplazar' ? '✅ Listo, cambié tu pedido.\n\n' : '';
+    const domicilio = negocio.domicilio ? `\n_(Si es a domicilio se suman ${cop(negocio.domicilio)})_` : '';
+    const texto = `${intro}*Tu pedido* 🛒\n\n${s.pedidoStr}\n\n*Subtotal:* ${cop(s.datosPedido?.monto)}${domicilio}\n\n¿Está todo bien?`;
+    await whatsappService.sendInteractiveButtons(to, texto.slice(0, 1024), BOTONES_CONFIRMAR);
+  }
+
+  /** Confirmó: se manda el Flow de datos (entrega y pago). */
+  async confirmarPedido(to) {
+    const s = sesion(to);
+    if (!this.pedidoPendiente(to)) {
+      await whatsappService.sendMessage(to, 'No encontré un pedido pendiente 🤔. Arma tu carrito 🛒 y envíalo, por favor.');
+      return;
+    }
+    s.pedido.estado = 'datos';
+    await this.menuPedido(to);
+    this.programarRecordatorio(to);
+  }
+
+  /** "Agregar más" / "Cambiar pedido": el próximo carrito se suma o reemplaza sin preguntar. */
+  async prepararCarrito(to, modo) {
+    const s = sesion(to);
+    if (!this.pedidoPendiente(to)) {
+      await whatsappService.sendMessage(to, 'No encontré un pedido pendiente 🤔. Arma tu carrito 🛒 y envíalo, por favor.');
+      return;
+    }
+    s.modoCarrito = modo;
+    await whatsappService.sendMessage(to, modo === 'agregar'
+      ? 'Perfecto 👌 Elige lo que quieras agregar y envía el carrito 🛒: lo sumo a tu pedido.'
+      : 'Claro 👌 Arma tu carrito 🛒 con el pedido como lo quieres y envíalo: reemplazo el anterior.\n\n💡 En el carrito puedes cambiar cantidades o quitar productos antes de enviarlo.');
+    await this.menuCarta(to);
+    await this.menuCarta2(to);
+    this.programarRecordatorio(to);
+  }
+
+  /** Respuesta a "¿Agregar o reemplazar?" / "¿Es adicional?" sobre el último carrito. */
+  async usarCarritoNuevo(to, modo) {
+    const s = sesion(to);
+    if (!s.carritoNuevo?.length) {
+      await whatsappService.sendMessage(to, 'No encontré los productos 🤔. Envía el carrito de nuevo, por favor.');
+      return;
+    }
+    if (modo === 'nuevo') s.pedido = null; // pedido nuevo (el anterior ya se envió)
+    return this.aplicarCarrito(to, s.carritoNuevo, modo);
+  }
+
+  /** ADICIONAL a un pedido ya enviado: mismos datos del Flow, sin domicilio otra vez. */
+  async procesarAdicional(to) {
+    const s = sesion(to);
+    const prev = s.pedido?.datos;
+    const items = s.carritoNuevo;
+    if (!prev || !items?.length) {
+      await whatsappService.sendMessage(to, 'No encontré tu pedido anterior 🤔. Envía el carrito de nuevo y lo tomamos como un pedido nuevo.');
+      return;
+    }
+    const { pedidoStr, monto } = this.resumenCarrito(items);
+    const datos = { ...prev, recomendacion: [prev.recomendacion, 'ADICIONAL al pedido anterior'].filter(Boolean).join(' · ') };
+    this.completeHiring(`➕ ADICIONAL\n${pedidoStr}`, datos, to);   // Google Sheets
+    this.completeOrder(items, datos, { adicional: true });          // Loggro (sin domicilio)
+    const response = await this.cobrarPedido(to, { monto, datos: prev, domicilioIncluido: true }, `➕ *Adicional:*\n${pedidoStr}`, { adicional: true });
+    if (response) await whatsappService.sendMessage(to, response);
+    s.pedido.ultimoAt = Date.now();
+    s.carritoNuevo = null;
+  }
+
+  /** El cliente llenó el Flow (pantalla SUMMARY): el pedido quedó enviado. Lo llama flow.js. */
+  pedidoEnviado(numero, data) {
+    const s = sesion(numero);
+    s.pedido = { ...(s.pedido ?? {}), estado: 'enviado', enviadoAt: Date.now(), ultimoAt: Date.now(), datos: { ...data } };
+    s.modoCarrito = null;
+    clearTimeout(temporizadores.get(numero));
+    temporizadores.delete(numero);
+  }
+
+  async cancelarPedido(to) {
+    const s = sesion(to);
+    s.pedido = null;
+    s.productos = [];
+    s.pedidoStr = '';
+    s.modoCarrito = null;
+    s.carritoNuevo = null;
+    clearTimeout(temporizadores.get(to));
+    temporizadores.delete(to);
+    await whatsappService.sendMessage(to, 'Listo, cancelé tu pedido 👍. Cuando quieras, escribe *pedir* y te muestro la carta.');
+  }
+
+  /**
+   * Recordatorio del pedido sin terminar: automático (cada RECORDATORIO_PEDIDO_MIN,
+   * máx. RECORDATORIO_PEDIDO_MAX veces) o justo después de responderle una pregunta.
+   */
+  async recordarPedido(to, { automatico = false } = {}) {
+    const s = obtenerSesion(to);
+    if (!s || !this.pedidoPendiente(to)) return false;
+    const p = s.pedido;
+    if (!automatico && p.ultimoRecordatorioAt && Date.now() - p.ultimoRecordatorioAt < 60 * 1000) return false; // no repetir en ráfaga
+    p.ultimoRecordatorioAt = Date.now();
+    if (automatico) p.recordatorios = (p.recordatorios ?? 0) + 1;
+    const ultimo = automatico && p.recordatorios >= config.RECORDATORIO_PEDIDO_MAX;
+    const cierre = ultimo ? '\n\nSi ya no lo quieres, escribe *cancelar*.' : '';
+    if (p.estado === 'confirmar') {
+      const texto = `${automatico ? '⏰ ' : ''}Tu pedido sigue esperando 🛒\n\n${s.pedidoStr}\n\n*Subtotal:* ${cop(s.datosPedido?.monto)}\n\n¿Lo confirmamos?${cierre}`;
+      await whatsappService.sendInteractiveButtons(to, texto.slice(0, 1024), BOTONES_CONFIRMAR);
+    } else {
+      await this.menuPedido(to, {
+        header: automatico ? '⏰ ¿Seguimos con tu pedido?' : '¿Seguimos con tu pedido? 😊',
+        body: `Solo falta que llenes tus datos de entrega y pago. Toca *Pedido* 👇${cierre}`,
+      });
+    }
+    if (automatico) this.programarRecordatorio(to);
+    return true;
+  }
+
+  /** Programa el próximo recordatorio (o lo cancela si ya no hace falta). */
+  programarRecordatorio(to) {
+    clearTimeout(temporizadores.get(to));
+    temporizadores.delete(to);
+    const s = obtenerSesion(to);
+    if (!this.pedidoPendiente(to) || (s.pedido.recordatorios ?? 0) >= config.RECORDATORIO_PEDIDO_MAX) return;
+    const t = setTimeout(() => {
+      temporizadores.delete(to);
+      this.recordarPedido(to, { automatico: true }).catch((error) => {
+        console.error('[pedido] no se pudo enviar el recordatorio:', error.message);
+        reportarFalla(error, { to, step: 'recordatorio del pedido pendiente' });
+      });
+    }, config.RECORDATORIO_PEDIDO_MIN * 60 * 1000);
+    t.unref?.();
+    temporizadores.set(to, t);
+  }
+
+  /** El cliente escribió: el recordatorio se cuenta desde ahora (no se le interrumpe mientras habla). */
+  tocarSeguimiento(to) {
+    if (temporizadores.has(to)) this.programarRecordatorio(to);
+  }
 }
 
 export default new MessageHandler();

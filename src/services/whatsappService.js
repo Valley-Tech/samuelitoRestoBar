@@ -50,7 +50,8 @@ class WhatsAppService {
     }
   }
 
-  async sendFlow(to, action) {
+  // v3.5: el recordatorio del pedido usa otro encabezado y texto ("¿Seguimos con tu pedido?").
+  async sendFlow(to, action, { header = "Datos de envío:", body = "Haz clic aquí 👇" } = {}) {
     try {
       const data = {
         recipient_type: 'individual',
@@ -61,10 +62,10 @@ class WhatsAppService {
           type: "flow",
           header: {
             type: "text",
-            text: "Datos de envío:"
+            text: header
           },
           body: { 
-            text: "Haz clic aquí 👇" 
+            text: body 
           },
           action
         },

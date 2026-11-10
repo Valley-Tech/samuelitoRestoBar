@@ -1,0 +1,65 @@
+﻿id;nombre;precio;categoria
+6133f09d5af774183ce25e0f;Caja Barrilera;;ASADOS AL BARRIL · solo domingos
+6133e891d145504ca38cbeeb;Chicharrón al Barril;;ASADOS AL BARRIL · solo domingos
+6133f070d145504ca38cbf3a;Costillas BBQ al barril;;ASADOS AL BARRIL · solo domingos
+5de86e87205aba0e1c990910;Chips de Plátano con Suero;;PARA PICAR
+654ffcee0779b105ec6ac3bd;Patacones de la Casa;;PARA PICAR
+5dbcae51c557e50e67febfcc;Don Chicharrón;;PARA PICAR
+5dbcad3fc557e50e67febfac;Canastas del Mar;;PARA PICAR
+5dbcae00c557e50e67febfc0;Cóctel de Camarones;;PARA PICAR
+5dbcb083c557e50e67febfdb;Chorizo Artesanal Santarrosano;;PARA PICAR
+6888523e6fb8ea242c06a0bb;Chorizo Artesanal Mexicano;;PARA PICAR
+67981c57bd2f74e33cfce707;Baby en Salsa de Champiñones;;PLATOS FUERTES
+66ef02fa4ff68adb785f09f8;Lomo imperial con Fettuccine a los 4 Quesos;;PLATOS FUERTES
+619e8bd01880235f6d5b27e5;Lomito Mar y Tierra;;PLATOS FUERTES
+5dbcb308c557e50e67febff9;Baby Beef;;PLATOS FUERTES
+5dbcb38cc557e50e67febffc;Churrasco de Res;;PLATOS FUERTES
+5dc733ad7c14810dfd3fec3f;Churrasco de Cerdo;;PLATOS FUERTES
+6311736932c31c05fbf10f89;Churrasco de Cerdo Gratinado;;PLATOS FUERTES
+68203e8d7f735e5e48b7ec3b;Churrasco de Cerdo en Salsa con Tocineta;;PLATOS FUERTES
+5e5ae290338d200e065c3577;Steak Pimienta;;PLATOS FUERTES
+5dbcb3d9c557e50e67fec005;Costillas BBQ Premium;;PLATOS FUERTES
+5dbcb5a6c557e50e67fec022;Pechuga al Grill;;PLATOS FUERTES
+5de84c6e205aba0e1c9907d0;Pechuga Gratinada;;PLATOS FUERTES
+68203ef70ae0923d28d06765;Pechuga en Salsa con Tocineta;;PLATOS FUERTES
+5dbcb57ec557e50e67fec01f;Parrillada Mixta;;PLATOS FUERTES
+654ff6380779b105ec6ac20a;New York Steak;;PLATOS FUERTES
+654ff7ba33294a05ef9f32f7;Rib Eye Steak;;PLATOS FUERTES
+61a10ddf1fd14430485f8cb9;Picada de la Casa (Para 2);;PLATOS FUERTES
+61a2657c1fd14430485f9f0e;Picada de la Casa (Para 4);;PLATOS FUERTES
+6550028ec2087c73f3b7775e;Mini Burger x3;;MENÚ INFANTIL
+61a118171fd14430485f8d78;Chicken Fingers;;MENÚ INFANTIL
+632df4983bcfe31bedde0e45;Pastas al Ajillo;;PASTAS
+5dd9dc26b928d20df3b63e49;Pastas Alfred;;PASTAS
+619d6d801880235f6d5b1c36;Salmón Pepper Pink;;PESCADOS Y MARISCOS
+5dcf187deea63f0df843be1e;Cazuela de Mariscos;;PESCADOS Y MARISCOS
+5e34ebb51ffca60e28d763ef;Camarones al Ajillo;;PESCADOS Y MARISCOS
+61a110b91880235f6d5b45a3;Arroz Samuelito;;ARROCES
+5f9b5233ef1e265d296b0f8d;Arroz de Camarones;;ARROCES
+6796793106b0703ef18a9f72;Club Sándwich;;SÁNDWICHES
+61a119621880235f6d5b4644;Ensalada con Atún;;ENSALADAS
+61a119421fd14430485f8d96;Ensalada con Pollo;;ENSALADAS
+618b0decad2f690565ff0342;Sushi Samuelito Rolls;;SUSHI
+5f9b5636ef1e265d296b0fd3;Clasic Burger;;COMIDAS RÁPIDAS
+5dbcb612c557e50e67fec02b;Hamburguesa Felipa;;COMIDAS RÁPIDAS
+5dbcb645c557e50e67fec02e;Samuelito Burger;;COMIDAS RÁPIDAS
+67981bf757fc699d06fbe11c;Perro Hawaiano;;COMIDAS RÁPIDAS
+5ef55e5619721c49eb8bb24a;Perro Clásico;;COMIDAS RÁPIDAS
+5dbcb6a5c557e50e67fec03e;Perro Suizo;;COMIDAS RÁPIDAS
+5dbcb67cc557e50e67fec031;Salchipupera;;COMIDAS RÁPIDAS
+5dc7332e7c14810dfd3fec34;Salchipapa Tradicional;;COMIDAS RÁPIDAS
+5f9b3922ef1e265d296b0d95;Desgranado de la Casa;;COMIDAS RÁPIDAS
+5dc7337b7c14810dfd3fec38;Desgranado Pupero;;COMIDAS RÁPIDAS
+5dc099e151aceb0dd757c620;Frutos Amarillos;;BEBIDAS y JUGOS
+5dbe24b354eef30e209928e8;Frutos Rojos;;BEBIDAS y JUGOS
+6a330907fcb370a10498d9ac;Maracumango;;BEBIDAS y JUGOS
+5dc0a48751aceb0dd757c6fa;Limonada cerezada;;BEBIDAS y JUGOS
+5dc0a48751aceb0dd757c6fb;Hierba Buena;;BEBIDAS y JUGOS
+5dc0a48751aceb0dd757c6fc;Limonada de coco;;BEBIDAS y JUGOS
+5dc0a60f51aceb0dd757c70f;Limonada Natural;;BEBIDAS y JUGOS
+5dc4ce4651aceb0dd757e786;Brownie con Helado;;POSTRES y MALTEADAS
+639c9b7d3c1b5a05f0d8fb97;Malteada de Oreo;;POSTRES y MALTEADAS
+5f9b455cef1e265d296b0eab;Panacota de Frutos Rojos;;POSTRES y MALTEADAS
+639c9ba452617c1b981ee446;Malteada de Nutela;;POSTRES y MALTEADAS
+65500860c2087c73f3b778a3;Malteada de Milo;;POSTRES y MALTEADAS
+6133e235d145504ca38cbd7e;Malteada de Café;;POSTRES y MALTEADAS

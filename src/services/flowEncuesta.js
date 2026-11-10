@@ -11,7 +11,7 @@ const SCREEN_RESPONSES = {
   },
 };
 
-export const nextEncuesta = async (decryptedBody) => {
+export const nextEncuesta = async (decryptedBody, numero) => {
   const { screen, data, version, action, flow_token } = decryptedBody;
   // handle health check request
   if (action === "ping") {
@@ -49,7 +49,7 @@ Que le gustaría que mejoraramos:   ${data.comentarios}`;
           },
         };
       case "RATE":
-        messageHandler.completeSurvey({...data});
+        messageHandler.completeSurvey({...data}, numero); // v3.5: número del flow_token
         return {
           ...SCREEN_RESPONSES.SUCCESS,
           data: {

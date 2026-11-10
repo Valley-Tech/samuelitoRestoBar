@@ -5,7 +5,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/app.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "productos-crm": "node scripts/productos-crm.mjs",
+    "fotos": "node scripts/fotos.mjs"
   },
   "type": "module",
   "keywords": [],
